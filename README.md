@@ -1,3 +1,5 @@
+<p align="center"><img src="logo.png" alt="docker-dev Logo" width="400"></p>
+
 # docker-dev
 
 [![Build and Publish](https://github.com/luongnv89/docker-dev/actions/workflows/build-images.yml/badge.svg)](https://github.com/luongnv89/docker-dev/actions)

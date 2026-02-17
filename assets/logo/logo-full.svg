@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap');
+    </style>
+  </defs>
+  <!-- Background -->
+  <rect width="400" height="120" fill="#FFFFFF" rx="8"/>
+
+  <!-- Container/Box with Dev Tools Symbol -->
+  <g transform="translate(22, 14)">
+    <!-- Container box (3D perspective) -->
+    <!-- Front face -->
+    <rect x="8" y="26" width="54" height="50" rx="3" fill="none" stroke="#000000" stroke-width="2.5"/>
+    <!-- Top face (perspective) -->
+    <path d="M8 26 L20 14 L74 14 L62 26 Z" fill="none" stroke="#000000" stroke-width="2.5" stroke-linejoin="round"/>
+    <!-- Right face (perspective) -->
+    <path d="M62 26 L74 14 L74 64 L62 76 Z" fill="#F3F4F6" stroke="#000000" stroke-width="2.5" stroke-linejoin="round"/>
+
+    <!-- Tool symbols inside box -->
+    <!-- Wrench -->
+    <g transform="translate(20, 38)">
+      <path d="M0 14 L10 4 M7 1 Q12 -2 14 3 L10 7 L12 9 L16 5 Q19 10 16 15 Q12 18 8 16 L0 24" fill="none" stroke="#22C55E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <!-- Terminal bracket -->
+    <text x="38" y="56" font-family="'Courier New', monospace" font-weight="700" font-size="18" fill="#22C55E">&gt;_</text>
+
+    <!-- Small blocks on top (representing stacked containers) -->
+    <rect x="22" y="16" width="10" height="8" rx="1" fill="#22C55E" opacity="0.7"/>
+    <rect x="35" y="16" width="10" height="8" rx="1" fill="#6B7280" opacity="0.5"/>
+    <rect x="48" y="16" width="10" height="8" rx="1" fill="#000000" opacity="0.3"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="116" y="58" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="34" fill="#000000">docker</text>
+  <text x="231" y="58" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="34" fill="#6B7280">-</text>
+  <text x="244" y="58" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-weight="700" font-size="34" fill="#22C55E">dev</text>
+
+  <!-- Tagline -->
+  <text x="116" y="80" font-family="'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-weight="400" font-size="11" fill="#6B7280">Curated dev environments, containerized.</text>
+</svg>
