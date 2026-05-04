@@ -23,6 +23,7 @@ Curated Docker images for different development environments. Each image lives i
 | `u2604dev/` | Ubuntu 26.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.13, etc. | [u2604dev/README.md](u2604dev/README.md) |
 | `u2404dev/` | Ubuntu 24.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.12, etc. | [u2404dev/README.md](u2404dev/README.md) |
 | `u2204dev/` | Ubuntu 22.04 CLI/dev environment with Oh My Zsh, wedisagree theme, Vim plugins, Node.js, Python 3.12, etc. | [u2204dev/README.md](u2204dev/README.md) |
+| `u2604dev-opencode/` | Ubuntu 26.04 with opencode CLI installed - seamless switching between host and container | [u2604dev-opencode/README.md](u2604dev-opencode/README.md) |
 
 > As new images are added, follow the same pattern: create `<image-name>/Dockerfile`, add a `<image-name>/README.md`, and update this table.
 
@@ -30,22 +31,49 @@ Curated Docker images for different development environments. Each image lives i
 
 ### Pull and Run
 
+Authenticate with GitHub Container Registry:
 ```bash
-# Authenticate with GitHub Container Registry
 echo "${GH_PAT}" | docker login ghcr.io -u <your-github-username> --password-stdin
+```
 
-# Pull and run an image
+Pull an image:
+```bash
+docker pull ghcr.io/luongnv89/u2604dev:latest
+```
+
+Run the container:
+```bash
 docker run --rm -it ghcr.io/luongnv89/u2604dev:latest zsh
 ```
 
 ### Build Locally
 
+Build a specific image:
 ```bash
-# Build a specific image
 docker build -t my-dev-env -f u2604dev/Dockerfile u2604dev
+```
 
-# Run locally built image
+Run locally built image:
+```bash
 docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
+```
+
+### Using Docker Compose (u2604dev-opencode)
+
+Build the opencode image:
+```bash
+cd u2604dev-opencode
+docker compose build opencode-dev
+```
+
+Run the container interactively:
+```bash
+docker compose run --rm -it opencode-dev
+```
+
+Inside the container, verify opencode is installed:
+```bash
+opencode --version
 ```
 
 ## Documentation
@@ -70,31 +98,37 @@ Images are published to GitHub Container Registry. See [Available Images](#avail
 
 #### Authentication
 
+Using GitHub PAT (requires read:packages scope):
 ```bash
-# Using GitHub PAT (requires read:packages scope)
 echo "${GH_PAT}" | docker login ghcr.io -u <github-username> --password-stdin
 ```
 
 #### Pulling Images
 
+Pull latest tag:
 ```bash
-# Pull latest tag
 docker pull ghcr.io/luongnv89/u2604dev:latest
+```
 
-# Pull specific version by commit SHA
+Pull specific version by commit SHA:
+```bash
 docker pull ghcr.io/luongnv89/u2604dev:<git-sha>
 ```
 
 #### Running Containers
 
+Interactive shell:
 ```bash
-# Interactive shell
 docker run --rm -it ghcr.io/luongnv89/u2604dev:latest zsh
+```
 
-# With current directory mounted
+With current directory mounted:
+```bash
 docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
+```
 
-# Using docker compose
+Using docker compose:
+```bash
 docker compose run --rm dev zsh
 ```
 
@@ -106,22 +140,29 @@ docker compose run --rm dev zsh
 2. Clone your fork
 3. Create a feature branch
 
+Clone the repository:
 ```bash
 git clone https://github.com/YOUR-USERNAME/docker-dev.git
+```
+
+Navigate to the directory:
+```bash
 cd docker-dev
+```
+
+Create a feature branch:
+```bash
 git checkout -b my-feature
 ```
 
 ### Pre-commit Hooks
 
 Install the pre-commit hook for automated quality checks:
-
 ```bash
 ln -sf ../../scripts/pre-commit.sh .git/hooks/pre-commit
 ```
 
 Or run ad-hoc:
-
 ```bash
 ./scripts/pre-commit.sh
 ```
@@ -141,7 +182,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-image) for detailed instructi
 
 The repository uses GitHub Actions for automated builds:
 
-- **Matrix workflow**: Builds all 3 images with multi-platform support
+- **Matrix workflow**: Builds all 4 images with multi-platform support
 - **Path-based detection**: Only builds images that changed
 - **Security scanning**: Trivy scans for vulnerabilities
 - **Artifact attestation**: Provenance for published images
