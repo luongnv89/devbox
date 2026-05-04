@@ -44,12 +44,11 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y nodejs
 
-# Install Python 3.12 and pip, set as default
+# Install Python 3 (default in Ubuntu 24.04) and pip
 RUN set -eux; \
-    echo "[Python] Installing Python 3.12"; \
+    echo "[Python] Installing Python 3 and pip"; \
     apt-get update; \
-    apt-get install -y python3.12 python3.12-venv python3.12-dev python3-pip; \
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1
+    apt-get install -y python3 python3-venv python3-dev python3-pip
 
 # Install Oh My Zsh for a richer shell experience
 RUN set -eux; \
