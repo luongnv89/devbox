@@ -1,0 +1,69 @@
+services:
+  opencode-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: u2604dev-opencode:latest
+    container_name: opencode-dev
+    hostname: opencode-dev
+    domainname: local
+
+    # Run as current host user to preserve file ownership
+    user: "${UID:-501}:${GID:-20}"
+
+    # Interactive TTY for opencode
+    stdin_open: true
+    tty: true
+
+    # Share SSH credentials for GitHub operations
+    volumes:
+      # Share workspace folder from host
+      - ~/workspace:/workspace
+
+      # Share SSH credentials for GitHub/Git operations
+      - ~/.ssh:/root/.ssh:ro
+
+      # Share opencode config from host
+      - ~/.config/opencode:/root/.config/opencode
+
+    # Copy SSH config with correct permissions
+    # The :ro makes it read-only, but you can remove it if you want to modify
+
+    # Environment variables
+    environment:
+      - TERM=xterm-256color
+      - LANG=en_US.UTF-8
+      - LANGUAGE=en_US:en
+      - HOME=/root
+
+    # Fix SSH directory permissions after mount
+    # SSH requires strict permissions (700 for .ssh, 600 for private keys)
+    # We use an entrypoint to ensure correct permissions at runtime
+    entrypoint:
+      - zsh
+      - -c
+      - |
+        # Fix SSH directory permissions
+        chmod 700 /root/.ssh 2>/dev/null || true
+        chmod 600 /root/.ssh/id_* 2>/dev/null || true
+        chmod 644 /root/.ssh/*.pub 2>/dev/null || true
+        # Start interactive shell
+        exec zsh
+
+    # Work directory
+    working_dir: /workspace
+
+    # Default command
+    # command: zsh
+
+# Build the image with:
+#   docker compose build opencode-dev
+#
+# Run the container with:
+#   docker compose run --rm opencode-dev
+#
+# Or start in interactive mode:
+#   docker compose run --rm -it opencode-dev
+#
+# To run opencode after entering:
+#   opencode
