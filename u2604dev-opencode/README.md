@@ -108,3 +108,19 @@ This allows you to:
 - Continue working in the same files
 - Use GitHub with your existing SSH keys
 - Use opencode with your existing configuration
+
+## First-run agent setup
+
+When you first run opencode inside the container, paste this prompt to configure the agent's persistent memory:
+
+```
+Please save the following to your persistent memory:
+
+1. SSH-based GitHub authentication is preconfigured via /root/.ssh (mounted read-only from the host). Use this for all GitHub operations (clone, push, pull). Do not generate new SSH keys or prompt for credentials.
+
+2. All project work must live under /workspace/ (the host's ~/workspace mounted as a shared volume). New projects should be cloned or created there. Existing projects are already there.
+
+3. The opencode configuration at /root/.config/opencode is shared with the host (~/.config/opencode). Changes persist across container restarts.
+```
+
+This ensures the agent uses the shared SSH credentials, works in the correct workspace, and understands the shared configuration.
