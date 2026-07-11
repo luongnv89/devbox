@@ -70,6 +70,7 @@ prompt_yes_no() {
   local prompt="$1"
   local default="${2:-y}"
   [ "${DOCKER_DEV_INTERACTIVE:-1}" -eq 0 ] && return 0
+  [ -t 0 ] || return 0
   local hint="[Y/n]"
   [ "$default" = "n" ] && hint="[y/N]"
   read -r -p "${prompt} ${hint} " ans || true

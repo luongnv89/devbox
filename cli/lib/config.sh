@@ -1,5 +1,22 @@
 # shellcheck shell=bash
 
+# Escape a string for JSON double-quoted value (no surrounding quotes).
+_docker_dev_json_escape() {
+  local s="$1" out="" i c
+  for ((i = 0; i < ${#s}; i++)); do
+    c="${s:i:1}"
+    case "$c" in
+      $'\\') out+='\\' ;;
+      '"') out+='\"' ;;
+      $'\n') out+='\n' ;;
+      $'\r') out+='\r' ;;
+      $'\t') out+='\t' ;;
+      *) out+="$c" ;;
+    esac
+  done
+  printf '%s' "$out"
+}
+
 docker_dev_cmd_config() {
   local repo_root="$1"
   shift
@@ -18,13 +35,18 @@ docker_dev_cmd_config() {
 
   case "$format" in
     json)
+      local jr jw jc jl
+      jr="$(_docker_dev_json_escape "$repo_root")"
+      jw="$(_docker_dev_json_escape "$PWD")"
+      jc="$(_docker_dev_json_escape "${HOME}/.codex")"
+      jl="$(_docker_dev_json_escape "${HOME}/.claude")"
       cat <<EOF
 {
-  "repo": "${repo_root}",
-  "workspace_default": "${PWD}",
+  "repo": "${jr}",
+  "workspace_default": "${jw}",
   "mounts": {
-    "codex": "${HOME}/.codex",
-    "claude": "${HOME}/.claude",
+    "codex": "${jc}",
+    "claude": "${jl}",
     "workspace_container": "/workspace"
   },
   "registry": "ghcr.io/luongnv89"

@@ -51,7 +51,11 @@ EOF
   docker_dev_validate_image "$image"
   require_cmd docker
 
-  if [ "${DOCKER_DEV_INTERACTIVE:-1}" -eq 1 ] && [ -z "$workspace" ] \
+  if [ "$do_pull" -eq 1 ] && [ "$do_build" -eq 1 ]; then
+    usage_error "--pull and --build cannot be used together (local --build uses image:tag; --pull uses ghcr.io)"
+  fi
+
+  if [ "${DOCKER_DEV_INTERACTIVE:-1}" -eq 1 ] && [ -t 0 ] && [ -z "$workspace" ] \
     && [ "$mount_codex" -eq 0 ] && [ "$mount_claude" -eq 0 ]; then
     echo "◆ cdev run"
     echo "  Image: ${image}"
