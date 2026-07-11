@@ -96,7 +96,7 @@ RUN set -eux; \
 
 # Configure Oh My Zsh plugins (disable default theme for Starship)
 RUN sed -i 's/^ZSH_THEME=".*"/ZSH_THEME=""/' /root/.zshrc; \
-    sed -i 's/plugins=(git)/plugins=(git zsh-syntax-highlighting zsh-autosuggestions zsh-completions docker kubectl npm pip python)/' /root/.zshrc
+    sed -i 's/plugins=(git)/plugins=(git zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc
 
 # Configure Starship and development-friendly terminal settings
 RUN cat <<'EOF' >> /root/.zshrc
@@ -123,12 +123,6 @@ alias gc='git commit'
 alias gp='git push'
 alias gl='git log --oneline --graph --decorate'
 alias gd='git diff'
-
-# Docker aliases
-alias d='docker'
-alias dc='docker compose'
-alias dps='docker ps'
-alias di='docker images'
 
 # Python virtual environment helpers
 alias venv='python3 -m venv venv'

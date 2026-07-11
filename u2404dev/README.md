@@ -24,10 +24,8 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 
 - **Oh My Zsh** with custom configuration
 - **Starship** prompt for a fast, cross-shell experience
-- Plugins included:
-  - zsh-syntax-highlighting
-  - zsh-autosuggestions
-  - zsh-completions
+- Oh My Zsh plugins (built-in + custom): `git`, `npm`, `pip`, `python`, plus custom plugins zsh-syntax-highlighting, zsh-autosuggestions, zsh-completions
+- **Docker CLI and kubectl are not installed** in the image (sandbox-friendly); Starship may still show container context when running inside Docker.
 
 ### Editor
 
@@ -90,12 +88,6 @@ alias gc='git commit'
 alias gp='git push'
 alias gl='git log --oneline --graph --decorate'
 alias gd='git diff'
-
-# Docker
-alias d='docker'
-alias dc='docker compose'
-alias dps='docker ps'
-alias di='docker images'
 
 # Python
 alias venv='python3 -m venv venv'
