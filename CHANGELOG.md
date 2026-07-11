@@ -11,7 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `common/install-ai-tools.sh` — shared image install for Claude Code, Codex, OpenCode, Pi, and `luongnv89/pi-extensions` (opencode-pi, statusline-pi, themes)
 - `common/entrypoint-dev.sh` — optional mount notices for workspace and AI config dirs
-- `scripts/docker-dev` — CLI to build/pull/run dev containers with `--mount-codex`, `--mount-claude`, and `--workspace`
+- `cli/` — proper `docker-dev` CLI (`run`, `build`, `list`, `config`) with `--version`, global `-v`/`-q`/`--no-color`
+- `install.sh` — one-line install via `curl | bash`
+- `scripts/docker-dev` — thin wrapper to `cli/bin/docker-dev`
 
 ### Changed
 

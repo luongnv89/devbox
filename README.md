@@ -62,21 +62,27 @@ docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
 
 ### Using the `docker-dev` CLI (recommended)
 
-From the repo root:
+**One-line install** (clones repo to `~/.local/share/docker-dev`, installs `docker-dev` to `~/.local/bin`):
 ```bash
-chmod +x scripts/docker-dev
-./scripts/docker-dev --help
+curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
 
-Happy path — build `u2604dev`, mount your workspace, and start zsh:
+Ensure `~/.local/bin` is on your `PATH`, then:
 ```bash
-./scripts/docker-dev --image u2604dev --workspace "$PWD" --build
+docker-dev --help
+docker-dev list
+docker-dev run --image u2604dev --workspace "$PWD" --build
 ```
 
 With host AI config (recommended for Claude Code / Codex login state):
 ```bash
-./scripts/docker-dev --image u2604dev --workspace "$PWD" \
-  --mount-codex --mount-claude --build
+docker-dev run --image u2604dev --workspace "$PWD" --mount-codex --mount-claude --build
+```
+
+From a git clone (without install):
+```bash
+./cli/bin/docker-dev --help
+# or: ./scripts/docker-dev --help
 ```
 
 Inside the container:

@@ -6,6 +6,8 @@ on:
     paths:
       - "u*/**"
       - "common/**"
+      - "cli/**"
+      - "install.sh"
       - "scripts/docker-dev"
       - ".github/workflows/build-images.yml"
       - "README.md"
