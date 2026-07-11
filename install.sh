@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install cdev CLI + herdr (one-line: curl -fsSL .../install.sh | bash)
+# Install cdev CLI (one-line: curl -fsSL .../install.sh | bash)
 set -euo pipefail
 
 REPO_URL="${DOCKER_DEV_INSTALL_REPO:-https://github.com/luongnv89/docker-dev.git}"
@@ -10,7 +10,6 @@ SHARE_DIR="${PREFIX}/share/docker-dev"
 CLI_DIR="${SHARE_DIR}/cli"
 REPO_DIR="${SHARE_DIR}/repo"
 CLI_NAME="${CDEV_CLI_NAME:-cdev}"
-INSTALL_HERDR="${CDEV_INSTALL_HERDR:-1}"
 
 die() {
   echo "✗ $*" >&2
@@ -25,21 +24,6 @@ ensure_cli_in_repo() {
   local repo="$1"
   [ -f "${repo}/cli/bin/cdev" ] \
     || die "cli/bin/cdev not found in ${repo} (ref ${REF}). Merge to main or set DOCKER_DEV_INSTALL_REF."
-}
-
-install_herdr() {
-  [ "${INSTALL_HERDR}" = "1" ] || return 0
-  if command -v herdr >/dev/null 2>&1; then
-    echo "● herdr already installed: $(command -v herdr)"
-    return 0
-  fi
-  need_cmd curl
-  echo "● Installing herdr (https://herdr.dev)..."
-  if curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="${BIN_DIR}" bash; then
-    echo "✓ herdr installed"
-  else
-    echo "⚠ herdr install failed — cdev is still installed. Retry: curl -fsSL https://herdr.dev/install.sh | bash" >&2
-  fi
 }
 
 install_from_repo() {
@@ -58,7 +42,6 @@ exec "${CLI_DIR}/bin/cdev" "\$@"
 WRAP
   chmod +x "${BIN_DIR}/${CLI_NAME}"
 
-  # Deprecated alias
   if [ "${CLI_NAME}" != "docker-dev" ] && [ ! -e "${BIN_DIR}/docker-dev" ]; then
     ln -sf "${CLI_NAME}" "${BIN_DIR}/docker-dev" 2>/dev/null || true
   fi
@@ -75,7 +58,6 @@ main() {
     if [ -f "${checkout_root}/cli/bin/cdev" ]; then
       echo "● Installing from local checkout: ${checkout_root}"
       install_from_repo "${checkout_root}"
-      install_herdr
       print_success "${checkout_root}"
       return 0
     fi
@@ -99,7 +81,6 @@ main() {
   fi
 
   install_from_repo "${REPO_DIR}"
-  install_herdr
   print_success "${REPO_DIR}"
 }
 
@@ -118,8 +99,9 @@ print_success() {
   echo "  Try:"
   echo "    ${CLI_NAME} --version"
   echo "    ${CLI_NAME} list"
-  echo "    herdr --help   # if herdr installed"
   echo "    ${CLI_NAME} run --help"
+  echo ""
+  echo "  herdr is baked into dev images (run a container, then: herdr)"
 }
 
 main "$@"

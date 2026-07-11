@@ -4,13 +4,11 @@
 
 ## Install
 
-Installs **cdev** and **[herdr](https://herdr.dev/)** (herd manager for dev tools):
+Installs **cdev** on the host. **[herdr](https://herdr.dev/)** is baked into container images (`common/install-ai-tools.sh`).
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
-
-Skip herdr: `CDEV_INSTALL_HERDR=0 curl -fsSL .../install.sh | bash`
 
 From a repository checkout:
 

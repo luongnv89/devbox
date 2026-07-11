@@ -62,7 +62,7 @@ docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
 
 ### Using the `cdev` CLI (recommended)
 
-**One-line install** — installs **`cdev`** and **[herdr](https://herdr.dev/)** to `~/.local/bin`, clones images repo to `~/.local/share/docker-dev`:
+**One-line install** — installs **`cdev`** to `~/.local/bin` and clones the images repo to `~/.local/share/docker-dev`. **[herdr](https://herdr.dev/)** is installed inside dev images:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```

@@ -23,6 +23,13 @@ echo "[AI] Installing luongnv89/pi-extensions (extensions + themes)..."
 curl -fsSL https://raw.githubusercontent.com/luongnv89/pi-extensions/main/install.sh \
   | bash -s -- --auto
 
+echo "[AI] Installing herdr (https://herdr.dev)..."
+if curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin bash; then
+  echo "[AI] herdr installed to /usr/local/bin"
+else
+  echo "[AI] Warning: herdr install failed (non-fatal)" >&2
+fi
+
 echo "[AI] Verifying binaries..."
 for cmd in git vim zsh starship node npm python3 opencode pi; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
