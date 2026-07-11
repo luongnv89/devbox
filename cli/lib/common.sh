@@ -66,6 +66,11 @@ require_dir() {
   [ -d "$path" ] || die "${label} not found: ${path} (create it or fix the path)"
 }
 
+docker_dev_dir_has_content() {
+  local path="$1"
+  [ -d "$path" ] && [ -n "$(ls -A "$path" 2>/dev/null)" ]
+}
+
 prompt_yes_no() {
   local prompt="$1"
   local default="${2:-y}"

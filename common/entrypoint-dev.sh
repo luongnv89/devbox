@@ -9,8 +9,11 @@ if [ -d /root/.ssh ] && [ "$(ls -A /root/.ssh 2>/dev/null)" ]; then
 fi
 
 for mount_label in \
+  "/root/.ssh:SSH config" \
   "/root/.codex:Codex config" \
   "/root/.claude:Claude Code config" \
+  "/root/.config/opencode:OpenCode config" \
+  "/root/.pi:Pi agent config" \
   "/workspace:Workspace"; do
   path="${mount_label%%:*}"
   label="${mount_label#*:}"

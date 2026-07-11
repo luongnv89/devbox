@@ -16,7 +16,7 @@ Curated Docker images for different development environments. Each image lives i
 - **Pre-commit Hooks**: Automated formatting, linting, and testing on every commit
 - **Production Ready**: Artifact attestation for image provenance
 - **Coding-ready images**: git, vim, zsh, Starship, OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
-- **`cdev` CLI**: Interactive launcher with optional `~/.codex`, `~/.claude`, and workspace mounts
+- **`cdev` CLI**: Interactive launcher with optional workspace, SSH, OpenCode, Pi, `~/.codex`, and `~/.claude` mounts
 
 ## Available Images
 
@@ -79,9 +79,11 @@ cdev list
 cdev run --image u2604dev --workspace "$PWD" --build
 ```
 
-With host AI config (recommended for Claude Code / Codex login state):
+With host AI config and Git remotes (SSH read-only, OpenCode/Pi when present):
 ```bash
-cdev run --image u2604dev --workspace "$PWD" --mount-codex --mount-claude --build
+cdev run --image u2604dev --workspace "$PWD" \
+  --mount-ssh --mount-opencode --mount-pi \
+  --mount-codex --mount-claude --build
 ```
 
 From a git clone (without install):
@@ -95,7 +97,7 @@ opencode --version
 pi --version
 ```
 
-Mount paths inside the container: `/workspace`, `/root/.codex`, `/root/.claude`.
+Mount paths inside the container: `/workspace`, `/root/.ssh` (ro), `/root/.config/opencode`, `/root/.pi`, `/root/.codex`, `/root/.claude`.
 
 Legacy helper: [u2604dev-opencode/run.sh](u2604dev-opencode/run.sh) (prefer `scripts/docker-dev`).
 

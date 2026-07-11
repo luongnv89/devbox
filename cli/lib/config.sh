@@ -40,13 +40,19 @@ docker_dev_cmd_config() {
       jw="$(_docker_dev_json_escape "$PWD")"
       jc="$(_docker_dev_json_escape "${HOME}/.codex")"
       jl="$(_docker_dev_json_escape "${HOME}/.claude")"
+      js="$(_docker_dev_json_escape "${HOME}/.ssh")"
+      jo="$(_docker_dev_json_escape "${HOME}/.config/opencode")"
+      jp="$(_docker_dev_json_escape "${HOME}/.pi")"
       cat <<EOF
 {
   "repo": "${jr}",
   "workspace_default": "${jw}",
   "mounts": {
+    "ssh": "${js}",
     "codex": "${jc}",
     "claude": "${jl}",
+    "opencode": "${jo}",
+    "pi": "${jp}",
     "workspace_container": "/workspace"
   },
   "registry": "ghcr.io/luongnv89"
@@ -58,8 +64,11 @@ EOF
       echo "  Repo root:     ${repo_root}"
       echo "  Registry:      ghcr.io/luongnv89/<image>:latest"
       echo "  Workspace:     host path → /workspace"
+      echo "  SSH mount:     ${HOME}/.ssh → /root/.ssh (ro with --mount-ssh)"
       echo "  Codex mount:   ${HOME}/.codex → /root/.codex"
       echo "  Claude mount:  ${HOME}/.claude → /root/.claude"
+      echo "  OpenCode:      ${HOME}/.config/opencode → /root/.config/opencode"
+      echo "  Pi mount:      ${HOME}/.pi → /root/.pi (when present)"
       echo "  Override repo: export CDEV_REPO=/path/to/docker-dev"
       ;;
     *)
