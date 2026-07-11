@@ -16,7 +16,7 @@ Curated Docker images for different development environments. Each image lives i
 - **Pre-commit Hooks**: Automated formatting, linting, and testing on every commit
 - **Production Ready**: Artifact attestation for image provenance
 - **Coding-ready images**: git, vim, zsh, Starship, OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
-- **`docker-dev` CLI**: Interactive launcher with optional `~/.codex`, `~/.claude`, and workspace mounts
+- **`cdev` CLI**: Interactive launcher with optional `~/.codex`, `~/.claude`, and workspace mounts
 
 ## Available Images
 
@@ -60,34 +60,33 @@ Run locally built image:
 docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
 ```
 
-### Using the `docker-dev` CLI (recommended)
+### Using the `cdev` CLI (recommended)
 
-**One-line install** (clones repo to `~/.local/share/docker-dev`, installs `docker-dev` to `~/.local/bin`):
+**One-line install** — installs **`cdev`** and **[herdr](https://herdr.dev/)** to `~/.local/bin`, clones images repo to `~/.local/share/docker-dev`:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
 
-If `main` does not yet include `cli/`, the installer automatically checks out `feature/4-dev-ready-docker-cli`. From a clone you can also run:
+From a clone:
 ```bash
 ./install.sh
 ```
 
 Ensure `~/.local/bin` is on your `PATH`, then:
 ```bash
-docker-dev --help
-docker-dev list
-docker-dev run --image u2604dev --workspace "$PWD" --build
+cdev --help
+cdev list
+cdev run --image u2604dev --workspace "$PWD" --build
 ```
 
 With host AI config (recommended for Claude Code / Codex login state):
 ```bash
-docker-dev run --image u2604dev --workspace "$PWD" --mount-codex --mount-claude --build
+cdev run --image u2604dev --workspace "$PWD" --mount-codex --mount-claude --build
 ```
 
 From a git clone (without install):
 ```bash
-./cli/bin/docker-dev --help
-# or: ./scripts/docker-dev --help
+./cli/bin/cdev --help
 ```
 
 Inside the container:

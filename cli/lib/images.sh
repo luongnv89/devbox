@@ -8,5 +8,5 @@ docker_dev_validate_image() {
   for img in "${DOCKER_DEV_IMAGES[@]}"; do
     [ "$img" = "$image" ] && return 0
   done
-  usage_error "Unsupported image: ${image} (use: docker-dev list)"
+  usage_error "Unsupported image: ${image} (use: cdev list)"
 }

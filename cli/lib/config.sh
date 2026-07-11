@@ -9,7 +9,7 @@ docker_dev_cmd_config() {
     case "$1" in
       --format) format="$2"; shift 2 ;;
       -h|--help)
-        echo "Usage: docker-dev config [--format text|json]"
+        echo "Usage: cdev config [--format text|json]"
         return 0
         ;;
       *) usage_error "Unknown config option: $1" ;;
@@ -32,13 +32,13 @@ docker_dev_cmd_config() {
 EOF
       ;;
     text)
-      echo "docker-dev configuration"
+      echo "cdev configuration"
       echo "  Repo root:     ${repo_root}"
       echo "  Registry:      ghcr.io/luongnv89/<image>:latest"
       echo "  Workspace:     host path → /workspace"
       echo "  Codex mount:   ${HOME}/.codex → /root/.codex"
       echo "  Claude mount:  ${HOME}/.claude → /root/.claude"
-      echo "  Override repo: export DOCKER_DEV_REPO=/path/to/docker-dev"
+      echo "  Override repo: export CDEV_REPO=/path/to/docker-dev"
       ;;
     *)
       usage_error "Unknown format: ${format}"

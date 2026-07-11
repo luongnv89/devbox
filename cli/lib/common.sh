@@ -26,8 +26,9 @@ docker_dev_resolve_repo_root() {
     echo "${candidate}"
     return 0
   fi
-  if [ -n "${DOCKER_DEV_REPO:-}" ] && [ -f "${DOCKER_DEV_REPO}/u2604dev/Dockerfile" ]; then
-    echo "${DOCKER_DEV_REPO}"
+  local repo_override="${CDEV_REPO:-${DOCKER_DEV_REPO:-}}"
+  if [ -n "${repo_override}" ] && [ -f "${repo_override}/u2604dev/Dockerfile" ]; then
+    echo "${repo_override}"
     return 0
   fi
   local default="${HOME}/.local/share/docker-dev/repo"
@@ -35,7 +36,7 @@ docker_dev_resolve_repo_root() {
     echo "${default}"
     return 0
   fi
-  die "docker-dev repo not found. Set DOCKER_DEV_REPO or run: curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash"
+  die "docker-dev repo not found. Set CDEV_REPO or run: curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash"
 }
 
 color_enabled() {

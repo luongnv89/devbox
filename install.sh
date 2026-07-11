@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Install docker-dev CLI (one-line: curl -fsSL .../install.sh | bash)
+# Install cdev CLI + herdr (one-line: curl -fsSL .../install.sh | bash)
 set -euo pipefail
 
 REPO_URL="${DOCKER_DEV_INSTALL_REPO:-https://github.com/luongnv89/docker-dev.git}"
 REF="${DOCKER_DEV_INSTALL_REF:-main}"
-# Until the CLI is on main, curl installs use this branch automatically when main lacks cli/
-FALLBACK_REF="${DOCKER_DEV_INSTALL_FALLBACK_REF:-feature/4-dev-ready-docker-cli}"
 PREFIX="${DOCKER_DEV_PREFIX:-${HOME}/.local}"
 BIN_DIR="${PREFIX}/bin"
 SHARE_DIR="${PREFIX}/share/docker-dev"
 CLI_DIR="${SHARE_DIR}/cli"
 REPO_DIR="${SHARE_DIR}/repo"
+CLI_NAME="${CDEV_CLI_NAME:-cdev}"
+INSTALL_HERDR="${CDEV_INSTALL_HERDR:-1}"
 
 die() {
   echo "✗ $*" >&2
@@ -23,50 +23,59 @@ need_cmd() {
 
 ensure_cli_in_repo() {
   local repo="$1"
-  if [ -f "${repo}/cli/bin/docker-dev" ]; then
+  [ -f "${repo}/cli/bin/cdev" ] \
+    || die "cli/bin/cdev not found in ${repo} (ref ${REF}). Merge to main or set DOCKER_DEV_INSTALL_REF."
+}
+
+install_herdr() {
+  [ "${INSTALL_HERDR}" = "1" ] || return 0
+  if command -v herdr >/dev/null 2>&1; then
+    echo "● herdr already installed: $(command -v herdr)"
     return 0
   fi
-  if [ "${REF}" = "main" ] && [ -n "${FALLBACK_REF}" ]; then
-    echo "● main does not include cli/ yet; checking out ${FALLBACK_REF}..."
-    git -C "${repo}" fetch origin "${FALLBACK_REF}" --depth 1 2>/dev/null \
-      || git -C "${repo}" fetch origin "${FALLBACK_REF}"
-    git -C "${repo}" checkout "${FALLBACK_REF}" 2>/dev/null \
-      || git -C "${repo}" checkout -B "${FALLBACK_REF}" "origin/${FALLBACK_REF}" \
-      || die "Could not checkout ${FALLBACK_REF}. Set DOCKER_DEV_INSTALL_REF explicitly."
+  need_cmd curl
+  echo "● Installing herdr (https://herdr.dev)..."
+  if curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="${BIN_DIR}" bash; then
+    echo "✓ herdr installed"
+  else
+    echo "⚠ herdr install failed — cdev is still installed. Retry: curl -fsSL https://herdr.dev/install.sh | bash" >&2
   fi
-  [ -f "${repo}/cli/bin/docker-dev" ] || die "cli/ not found in ${repo}. Set DOCKER_DEV_INSTALL_REF to a branch that contains cli/ (e.g. ${FALLBACK_REF})."
 }
 
 install_from_repo() {
   local repo="$1"
   ensure_cli_in_repo "${repo}"
 
-  echo "● Installing CLI to ${CLI_DIR}..."
+  echo "● Installing cdev CLI to ${CLI_DIR}..."
   rm -rf "${CLI_DIR}"
   cp -R "${repo}/cli" "${CLI_DIR}"
-  chmod +x "${CLI_DIR}/bin/docker-dev"
+  chmod +x "${CLI_DIR}/bin/cdev"
 
-  cat > "${BIN_DIR}/docker-dev" <<WRAP
+  cat > "${BIN_DIR}/${CLI_NAME}" <<WRAP
 #!/usr/bin/env bash
 export DOCKER_DEV_REPO="${repo}"
-exec "${CLI_DIR}/bin/docker-dev" "\$@"
+exec "${CLI_DIR}/bin/cdev" "\$@"
 WRAP
-  chmod +x "${BIN_DIR}/docker-dev"
+  chmod +x "${BIN_DIR}/${CLI_NAME}"
+
+  # Deprecated alias
+  if [ "${CLI_NAME}" != "docker-dev" ] && [ ! -e "${BIN_DIR}/docker-dev" ]; then
+    ln -sf "${CLI_NAME}" "${BIN_DIR}/docker-dev" 2>/dev/null || true
+  fi
 }
 
 main() {
   need_cmd mkdir
-
   mkdir -p "${BIN_DIR}" "${SHARE_DIR}"
 
-  # Running ./install.sh from a git checkout (recommended while developing)
   local install_script="${BASH_SOURCE[0]:-}"
   if [ -n "${install_script}" ] && [ -f "${install_script}" ]; then
     local checkout_root
     checkout_root="$(cd "$(dirname "${install_script}")" && pwd)"
-    if [ -f "${checkout_root}/cli/bin/docker-dev" ]; then
+    if [ -f "${checkout_root}/cli/bin/cdev" ]; then
       echo "● Installing from local checkout: ${checkout_root}"
       install_from_repo "${checkout_root}"
+      install_herdr
       print_success "${checkout_root}"
       return 0
     fi
@@ -75,7 +84,7 @@ main() {
   need_cmd git
 
   if [ -d "${REPO_DIR}/.git" ]; then
-    echo "● Updating docker-dev repository..."
+    echo "● Updating docker-dev repository (ref=${REF})..."
     git -C "${REPO_DIR}" fetch origin "${REF}" 2>/dev/null || git -C "${REPO_DIR}" fetch origin
     git -C "${REPO_DIR}" checkout "${REF}" 2>/dev/null || true
     git -C "${REPO_DIR}" pull --ff-only origin "${REF}" 2>/dev/null || true
@@ -83,32 +92,34 @@ main() {
     echo "● Cloning docker-dev (shallow, ref=${REF})..."
     rm -rf "${REPO_DIR}"
     if ! git clone --depth 1 --branch "${REF}" "${REPO_URL}" "${REPO_DIR}" 2>/dev/null; then
-      echo "● Branch ${REF} shallow clone failed; cloning default branch..."
+      echo "● Shallow clone of branch ${REF} failed; cloning default branch..."
       git clone --depth 1 "${REPO_URL}" "${REPO_DIR}" || die "Clone failed. Check network and REPO_URL=${REPO_URL}"
       git -C "${REPO_DIR}" checkout "${REF}" 2>/dev/null || true
     fi
   fi
 
   install_from_repo "${REPO_DIR}"
+  install_herdr
   print_success "${REPO_DIR}"
 }
 
 print_success() {
   local repo="$1"
   echo ""
-  echo "✓ docker-dev installed"
-  echo "  Binary:  ${BIN_DIR}/docker-dev"
+  echo "✓ ${CLI_NAME} installed"
+  echo "  Binary:  ${BIN_DIR}/${CLI_NAME}"
   echo "  Repo:    ${repo}"
   echo ""
-  if ! command -v docker-dev >/dev/null 2>&1; then
+  if ! command -v "${CLI_NAME}" >/dev/null 2>&1; then
     echo "  Add to PATH:"
     echo "    export PATH=\"${BIN_DIR}:\$PATH\""
     echo ""
   fi
   echo "  Try:"
-  echo "    docker-dev --version"
-  echo "    docker-dev list"
-  echo "    docker-dev run --help"
+  echo "    ${CLI_NAME} --version"
+  echo "    ${CLI_NAME} list"
+  echo "    herdr --help   # if herdr installed"
+  echo "    ${CLI_NAME} run --help"
 }
 
 main "$@"

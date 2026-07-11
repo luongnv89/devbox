@@ -25,7 +25,7 @@ docker_dev_cmd_run() {
       --no-interactive) DOCKER_DEV_INTERACTIVE=0; shift ;;
       -h|--help)
         cat <<'EOF'
-Usage: docker-dev run [options]
+Usage: cdev run [options]
 
 Create and start an interactive dev container (zsh).
 
@@ -53,7 +53,7 @@ EOF
 
   if [ "${DOCKER_DEV_INTERACTIVE:-1}" -eq 1 ] && [ -z "$workspace" ] \
     && [ "$mount_codex" -eq 0 ] && [ "$mount_claude" -eq 0 ]; then
-    echo "◆ docker-dev run"
+    echo "◆ cdev run"
     echo "  Image: ${image}"
     prompt_yes_no "Mount Codex config from \$HOME/.codex?" y && mount_codex=1 || true
     prompt_yes_no "Mount Claude Code config from \$HOME/.claude?" y && mount_claude=1 || true

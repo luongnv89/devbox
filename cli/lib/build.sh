@@ -12,7 +12,7 @@ docker_dev_cmd_build() {
       -t|--tag) tag="$2"; shift 2 ;;
       -h|--help)
         cat <<'EOF'
-Usage: docker-dev build [options]
+Usage: cdev build [options]
 
 Build a dev image locally (requires Docker).
 

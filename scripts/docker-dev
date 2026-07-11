@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Back-compat wrapper — prefer `docker-dev` after install.sh
+# Deprecated: use `cdev` (install.sh). Forwards to cli/bin/cdev.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export DOCKER_DEV_REPO="${DOCKER_DEV_REPO:-$ROOT}"
-exec "${ROOT}/cli/bin/docker-dev" "$@"
+exec "${ROOT}/cli/bin/cdev" "$@"

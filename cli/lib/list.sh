@@ -6,7 +6,7 @@ docker_dev_cmd_list() {
     case "$1" in
       --format) format="$2"; shift 2 ;;
       -h|--help)
-        echo "Usage: docker-dev list [--format text|json]"
+        echo "Usage: cdev list [--format text|json]"
         return 0
         ;;
       *) usage_error "Unknown list option: $1" ;;

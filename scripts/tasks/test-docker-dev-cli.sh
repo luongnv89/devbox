@@ -2,8 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-CLI="${ROOT_DIR}/cli/bin/docker-dev"
-export DOCKER_DEV_REPO="${ROOT_DIR}"
+CLI="${ROOT_DIR}/cli/bin/cdev"
+export CDEV_REPO="${ROOT_DIR}"
 
 assert_contains() {
   local out="$1"
@@ -14,8 +14,8 @@ assert_contains() {
   esac
 }
 
-assert_contains "$("${CLI}" --version)" "docker-dev"
-assert_contains "$("${CLI}" --help)" "docker-dev run"
+assert_contains "$("${CLI}" --version)" "cdev"
+assert_contains "$("${CLI}" --help)" "cdev run"
 assert_contains "$("${CLI}" list)" "u2604dev"
 assert_contains "$("${CLI}" list --format json)" "u2604dev"
 assert_contains "$("${CLI}" config)" "Repo root"
@@ -31,6 +31,6 @@ if "${CLI}" bogus 2>/dev/null; then
   exit 1
 fi
 
-assert_contains "$("${ROOT_DIR}/scripts/docker-dev" --version)" "docker-dev"
+assert_contains "$("${ROOT_DIR}/scripts/docker-dev" --version)" "cdev"
 
-echo "docker-dev CLI smoke checks passed."
+echo "cdev CLI smoke checks passed."

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# docker-dev — coding-ready Docker dev environments
+# cdev — coding dev containers (docker-dev project)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,11 +9,11 @@ LIB_DIR="${CLI_ROOT}/lib"
 # shellcheck source=../lib/common.sh
 source "${LIB_DIR}/common.sh"
 
-if [ -z "${DOCKER_DEV_VERSION}" ]; then
+if [ -z "${CDEV_VERSION:-}" ]; then
   if [ -f "${CLI_ROOT}/VERSION" ]; then
-    DOCKER_DEV_VERSION="$(tr -d '[:space:]' < "${CLI_ROOT}/VERSION")"
+    CDEV_VERSION="$(tr -d '[:space:]' < "${CLI_ROOT}/VERSION")"
   else
-    DOCKER_DEV_VERSION="0.0.0"
+    CDEV_VERSION="0.0.0"
   fi
 fi
 
@@ -24,16 +24,16 @@ GLOBAL_REPO=""
 
 show_root_help() {
   cat <<EOF
-docker-dev — build and run coding-ready dev containers
+cdev — build and run coding-ready dev containers
 
-Version: ${DOCKER_DEV_VERSION}
+Version: ${CDEV_VERSION}
 
 Usage:
-  docker-dev <command> [options]
-  docker-dev run [options]          Start interactive container (default workflow)
-  docker-dev build [options]        Build image locally
-  docker-dev list [--format json]   List image names
-  docker-dev config [--format json] Show paths and repo root
+  cdev <command> [options]
+  cdev run [options]          Start interactive container (default workflow)
+  cdev build [options]        Build image locally
+  cdev list [--format json]   List image names
+  cdev config [--format json] Show paths and repo root
 
 Global options:
   -h, --help           Show help
@@ -44,22 +44,20 @@ Global options:
   --repo PATH          Path to docker-dev git checkout
 
 Environment:
-  DOCKER_DEV_REPO      Repository root (Dockerfiles)
-  NO_COLOR             Disable color (standard)
+  CDEV_REPO / DOCKER_DEV_REPO   Repository root (Dockerfiles)
+  NO_COLOR                      Disable color (standard)
 
-Install (one line):
+Install (cdev + herdr):
   curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 
 Examples:
-  docker-dev run --image u2604dev --workspace "\$PWD" --build
-  docker-dev run --mount-codex --mount-claude -w ~/projects/app
-  docker-dev build --image u2404dev
-  docker-dev list --format json
+  cdev run --image u2604dev --workspace "\$PWD" --build
+  cdev run --mount-codex --mount-claude -w ~/projects/app
+  cdev build --image u2404dev
+  cdev list --format json
 EOF
 }
 
-# Parse global flags before subcommand
-ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help)
@@ -67,7 +65,7 @@ while [ $# -gt 0 ]; do
       exit 0
       ;;
     --version)
-      echo "docker-dev ${DOCKER_DEV_VERSION}"
+      echo "cdev ${CDEV_VERSION}"
       exit 0
       ;;
     -v|--verbose) GLOBAL_VERBOSE=1; shift ;;
@@ -79,7 +77,7 @@ while [ $# -gt 0 ]; do
       ;;
     *)
       if [ "${1#-}" != "$1" ]; then
-        usage_error "Unknown global option: $1 (try docker-dev --help)"
+        usage_error "Unknown global option: $1 (try cdev --help)"
       fi
       break
       ;;

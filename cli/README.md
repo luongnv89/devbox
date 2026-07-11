@@ -1,14 +1,18 @@
-# docker-dev CLI
+# cdev CLI
 
-Subcommand-based launcher for coding-ready containers.
+**C**oding **dev** containers — launcher for docker-dev images.
 
 ## Install
+
+Installs **cdev** and **[herdr](https://herdr.dev/)** (herd manager for dev tools):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
 
-Or from a repository checkout:
+Skip herdr: `CDEV_INSTALL_HERDR=0 curl -fsSL .../install.sh | bash`
+
+From a repository checkout:
 
 ```bash
 ./install.sh
@@ -18,29 +22,21 @@ Or from a repository checkout:
 
 | Command | Description |
 |---------|-------------|
-| `docker-dev run` | Build/pull and start interactive zsh session |
-| `docker-dev build` | Build image locally |
-| `docker-dev list` | Show image names (`--format json`) |
-| `docker-dev config` | Show repo root and mount paths |
+| `cdev run` | Build/pull and start interactive zsh session |
+| `cdev build` | Build image locally |
+| `cdev list` | Show image names (`--format json`) |
+| `cdev config` | Show repo root and mount paths |
 
 ## Global flags
 
 - `--version`, `-h` / `--help`
 - `-v` / `--verbose`, `-q` / `--quiet`, `--no-color`
-- `--repo PATH` or `DOCKER_DEV_REPO`
-
-## Exit codes
-
-- `0` success
-- `1` runtime error (Docker, missing paths)
-- `2` usage error (unknown flags/commands)
+- `--repo PATH` or `CDEV_REPO`
 
 ## Development
 
-From repository root:
-
 ```bash
-export DOCKER_DEV_REPO="$PWD"
-./cli/bin/docker-dev list
+export CDEV_REPO="$PWD"
+./cli/bin/cdev list
 ./scripts/tasks/test-docker-dev-cli.sh
 ```
