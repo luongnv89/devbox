@@ -10,7 +10,7 @@ RUN set -eux; \
     echo "[Base] Updating apt cache and installing CLI tools"; \
     apt-get update; \
     apt-get install -y \
-        git vim wget curl zsh \
+        git git-lfs openssh-client vim wget curl zsh \
         ca-certificates gnupg lsb-release \
         software-properties-common \
         build-essential \
@@ -27,6 +27,11 @@ RUN set -eux; \
     ln -sf /usr/bin/rg /usr/bin/ripgrep; \
     echo "[Base] Cleaning apt metadata"; \
     rm -rf /var/lib/apt/lists/*
+
+# Initialize Git LFS hooks for the default git config
+RUN set -eux; \
+    echo "[Git LFS] Running git lfs install"; \
+    git lfs install
 
 # Configure UTF-8 locale for consistent tooling behavior
 RUN set -eux; \

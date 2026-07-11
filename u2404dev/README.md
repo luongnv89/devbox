@@ -52,7 +52,7 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 
 ## Installed Packages
 
-- **CLI Tools**: git, vim, wget, curl, zsh, unzip, fontconfig
+- **CLI Tools**: git, git-lfs, openssh-client, vim, wget, curl, zsh, unzip, fontconfig
 - **Build Tools**: build-essential, ninja-build, cmake, gettext
 - **Utilities**: btop, ripgrep, bat, ca-certificates, gnupg, lsb-release
 
