@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `common/install-ai-tools.sh` — shared image install for Claude Code, Codex, OpenCode, Pi, and `luongnv89/pi-extensions` (opencode-pi, statusline-pi, themes)
+- `common/entrypoint-dev.sh` — optional mount notices for workspace and AI config dirs
+- `scripts/docker-dev` — CLI to build/pull/run dev containers with `--mount-codex`, `--mount-claude`, and `--workspace`
+
+### Changed
+
+- `u2204dev`, `u2404dev`, `u2604dev` Dockerfiles: repo-root build context, AI tooling baked in, shared entrypoint
+- CI and pre-commit test builds use repository root as Docker build context
+- README: document `docker-dev` CLI and fix obsolete docker compose instructions
+
 ## [1.0.0] - 2026-01-11
 
 ### Added

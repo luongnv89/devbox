@@ -71,10 +71,10 @@ RUN set -eux; \
     mkdir -p /root/.config
 
 # Copy Starship configuration
-COPY starship.toml /root/.config/starship.toml
+COPY u2204dev/starship.toml /root/.config/starship.toml
 
 # Configure Vim with useful plugins
-COPY .vimrc /root/.vimrc
+COPY u2204dev/.vimrc /root/.vimrc
 RUN set -eux; \
     echo "[Vim] Installing vim-plug and plugins"; \
     curl -fLo /root/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim; \
@@ -153,7 +153,7 @@ setopt PUSHD_IGNORE_DUPS
 
 # Display a friendly welcome message on login
 echo ""
-echo "Welcome to the u2204dev container!"
+echo "Welcome to the u2204dev container (coding-ready)!"
 if command -v python3 >/dev/null 2>&1; then
   PY_VER="$(python3 --version 2>/dev/null)"
 else
@@ -171,6 +171,8 @@ else
 fi
 echo "Shell: Zsh + Starship + Oh My Zsh plugins"
 echo "Editor: Vim with plugins"
+if command -v opencode >/dev/null 2>&1; then echo "AI: opencode $(opencode --version 2>/dev/null | head -1)"; fi
+if command -v pi >/dev/null 2>&1; then echo "AI: pi $(pi --version 2>/dev/null | head -1)"; fi
 echo "$PY_VER"
 echo "$NODE_VER"
 echo "$NPM_VER"
@@ -178,5 +180,12 @@ echo ""
 
 EOF
 
-# Drop into zsh by default for interactive containers
-CMD [ "zsh" ]
+# Coding-agent CLIs and pi-extensions (luongnv89/pi-extensions)
+COPY common/install-ai-tools.sh /tmp/install-ai-tools.sh
+RUN chmod +x /tmp/install-ai-tools.sh && bash /tmp/install-ai-tools.sh
+
+COPY common/entrypoint-dev.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["zsh"]
