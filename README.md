@@ -67,6 +67,11 @@ docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
 curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
 
+If `main` does not yet include `cli/`, the installer automatically checks out `feature/4-dev-ready-docker-cli`. From a clone you can also run:
+```bash
+./install.sh
+```
+
 Ensure `~/.local/bin` is on your `PATH`, then:
 ```bash
 docker-dev --help

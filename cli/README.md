@@ -8,6 +8,12 @@ Subcommand-based launcher for coding-ready containers.
 curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
 
+Or from a repository checkout:
+
+```bash
+./install.sh
+```
+
 ## Commands
 
 | Command | Description |
