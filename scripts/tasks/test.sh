@@ -11,6 +11,8 @@ fi
 IMAGE_TAG="u2204dev:pre-commit"
 
 echo "Building $IMAGE_TAG for verification..."
-docker build -t "$IMAGE_TAG" -f "$ROOT_DIR/u2204dev/Dockerfile" "$ROOT_DIR/u2204dev"
+docker build -t "$IMAGE_TAG" -f "$ROOT_DIR/u2204dev/Dockerfile" "$ROOT_DIR"
 
 echo "Docker image built successfully."
+
+"$ROOT_DIR/scripts/tasks/test-docker-dev-cli.sh"

@@ -15,6 +15,8 @@ Curated Docker images for different development environments. Each image lives i
 - **Security Scanned**: Images are scanned with Trivy for vulnerabilities
 - **Pre-commit Hooks**: Automated formatting, linting, and testing on every commit
 - **Production Ready**: Artifact attestation for image provenance
+- **Coding-ready images**: git, vim, zsh, Starship, OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
+- **`cdev` CLI**: Interactive launcher with optional `~/.codex`, `~/.claude`, and workspace mounts
 
 ## Available Images
 
@@ -23,7 +25,7 @@ Curated Docker images for different development environments. Each image lives i
 | `u2604dev/` | Ubuntu 26.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.13, etc. | [u2604dev/README.md](u2604dev/README.md) |
 | `u2404dev/` | Ubuntu 24.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.12, etc. | [u2404dev/README.md](u2404dev/README.md) |
 | `u2204dev/` | Ubuntu 22.04 CLI/dev environment with Oh My Zsh, wedisagree theme, Vim plugins, Node.js, Python 3.12, etc. | [u2204dev/README.md](u2204dev/README.md) |
-| `u2604dev-opencode/` | Ubuntu 26.04 with opencode CLI installed - seamless switching between host and container | [u2604dev-opencode/README.md](u2604dev-opencode/README.md) |
+| `u2604dev-opencode/` | Thin layer on `u2604dev` for OpenCode-focused workflows | [u2604dev-opencode/README.md](u2604dev-opencode/README.md) |
 
 > As new images are added, follow the same pattern: create `<image-name>/Dockerfile`, add a `<image-name>/README.md`, and update this table.
 
@@ -48,9 +50,9 @@ docker run --rm -it ghcr.io/luongnv89/u2604dev:latest zsh
 
 ### Build Locally
 
-Build a specific image:
+Build a specific image (context is repo root so `common/` scripts are included):
 ```bash
-docker build -t my-dev-env -f u2604dev/Dockerfile u2604dev
+docker build -t my-dev-env -f u2604dev/Dockerfile .
 ```
 
 Run locally built image:
@@ -58,23 +60,44 @@ Run locally built image:
 docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
 ```
 
-### Using Docker Compose (u2604dev-opencode)
+### Using the `cdev` CLI (recommended)
 
-Build the opencode image:
+**One-line install** — installs **`cdev`** to `~/.local/bin` and clones the images repo to `~/.local/share/docker-dev`. **[herdr](https://herdr.dev/)** is installed inside dev images:
 ```bash
-cd u2604dev-opencode
-docker compose build opencode-dev
+curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
 
-Run the container interactively:
+From a clone:
 ```bash
-docker compose run --rm -it opencode-dev
+./install.sh
 ```
 
-Inside the container, verify opencode is installed:
+Ensure `~/.local/bin` is on your `PATH`, then:
+```bash
+cdev --help
+cdev list
+cdev run --image u2604dev --workspace "$PWD" --build
+```
+
+With host AI config (recommended for Claude Code / Codex login state):
+```bash
+cdev run --image u2604dev --workspace "$PWD" --mount-codex --mount-claude --build
+```
+
+From a git clone (without install):
+```bash
+./cli/bin/cdev --help
+```
+
+Inside the container:
 ```bash
 opencode --version
+pi --version
 ```
+
+Mount paths inside the container: `/workspace`, `/root/.codex`, `/root/.claude`.
+
+Legacy helper: [u2604dev-opencode/run.sh](u2604dev-opencode/run.sh) (prefer `scripts/docker-dev`).
 
 ## Documentation
 

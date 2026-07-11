@@ -46,6 +46,19 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
 | bat | Latest |
 | btop | Latest |
 
+### AI / coding agents (baked in)
+
+- **OpenCode**, **Pi** (`@mariozechner/pi-coding-agent`)
+- **Claude Code** and **Codex** (npm globals; use `--mount-claude` / `--mount-codex` via [`scripts/docker-dev`](../../scripts/docker-dev) for host login state)
+- **pi-extensions** from [`luongnv89/pi-extensions`](https://github.com/luongnv89/pi-extensions) (opencode-pi, statusline-pi, themes)
+- **[herdr](https://herdr.dev/)** — herd manager for dev tools (`/usr/local/bin/herdr`)
+
+Build from repo root:
+
+```bash
+docker build -t u2604dev -f u2604dev/Dockerfile .
+```
+
 ### Other Features
 
 - JetBrains Mono Nerd Font pre-installed

@@ -5,12 +5,22 @@ on:
     branches: [main]
     paths:
       - "u*/**"
+      - "common/**"
+      - "cli/**"
+      - "install.sh"
+      - "scripts/docker-dev"
       - ".github/workflows/build-images.yml"
       - "README.md"
   pull_request:
     branches: [main]
     paths:
       - "u*/**"
+      - "common/**"
+      - "cli/**"
+      - "install.sh"
+      - "scripts/docker-dev"
+      - ".github/workflows/build-images.yml"
+      - "README.md"
   workflow_dispatch:
 
 env:
@@ -60,13 +70,13 @@ jobs:
         include:
           - image: u2204dev
             dockerfile: u2204dev/Dockerfile
-            context: u2204dev
+            context: .
           - image: u2404dev
             dockerfile: u2404dev/Dockerfile
-            context: u2404dev
+            context: .
           - image: u2604dev
             dockerfile: u2604dev/Dockerfile
-            context: u2604dev
+            context: .
     permissions:
       contents: read
       packages: write
