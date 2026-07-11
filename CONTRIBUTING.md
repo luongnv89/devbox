@@ -182,6 +182,29 @@ Closes #123
 - Include code blocks with language tags
 - Keep line width to 80 characters
 
+## Bumping AI CLI versions
+
+Dev images install global AI CLIs from `common/install-ai-tools.sh` with **explicit npm versions** so CI and sandbox builds stay reproducible.
+
+When upgrading a CLI:
+
+1. Check the latest version: `npm view <package-name> version`
+2. Update the matching `*_VERSION` variable at the top of `common/install-ai-tools.sh`
+3. Run `./scripts/pre-commit.sh` (includes a Docker build that runs the install script)
+4. Note the bump in `CHANGELOG.md` under `[Unreleased]`
+
+Packages pinned today:
+
+| Variable | npm package |
+|----------|-------------|
+| `CLAUDE_CODE_VERSION` | `@anthropic-ai/claude-code` |
+| `CODEX_VERSION` | `@openai/codex` |
+| `OPENCODE_AI_VERSION` | `opencode-ai` |
+| `PI_CODING_AGENT_VERSION` | `@mariozechner/pi-coding-agent` |
+| `OPENCODE_WARP_VERSION` | `@warp-dot-dev/opencode-warp` |
+
+`pi install npm:…` extensions and `herdr` / `pi-extensions` installers are not npm-pinned in this script; bump those when their upstream install docs change.
+
 ## Testing
 
 ### Automated Tests
