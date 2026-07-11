@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Core sandbox CLI utilities (jq, fzf, fd, gh)
 if [ -f /usr/share/fzf/shell/key-bindings.zsh ]; then
   # shellcheck disable=SC1091
