@@ -2,13 +2,20 @@
 # Install coding-agent CLIs and pi-extensions (image build time).
 set -euo pipefail
 
-echo "[AI] Installing global npm CLIs..."
+# Pinned versions — bump process: CONTRIBUTING.md § "Bumping AI CLI versions"
+CLAUDE_CODE_VERSION="2.1.207"
+CODEX_VERSION="0.144.1"
+OPENCODE_AI_VERSION="1.17.18"
+PI_CODING_AGENT_VERSION="0.73.1"
+OPENCODE_WARP_VERSION="0.1.7"
+
+echo "[AI] Installing global npm CLIs (pinned)..."
 npm install -g \
-  @anthropic-ai/claude-code \
-  @openai/codex \
-  opencode-ai \
-  @mariozechner/pi-coding-agent \
-  @warp-dot-dev/opencode-warp
+  "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+  "@openai/codex@${CODEX_VERSION}" \
+  "opencode-ai@${OPENCODE_AI_VERSION}" \
+  "@mariozechner/pi-coding-agent@${PI_CODING_AGENT_VERSION}" \
+  "@warp-dot-dev/opencode-warp@${OPENCODE_WARP_VERSION}"
 
 export PATH="${PATH}:/usr/local/bin"
 

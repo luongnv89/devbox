@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `common/install-ai-tools.sh`: pin global npm AI CLI versions; see CONTRIBUTING for bump process
 - `u2204dev`, `u2404dev`, `u2604dev` Dockerfiles: repo-root build context, AI tooling baked in, shared entrypoint
 - CI and pre-commit test builds use repository root as Docker build context
 - README: document `docker-dev` CLI and fix obsolete docker compose instructions
