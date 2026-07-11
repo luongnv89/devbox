@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `common/install-ai-tools.sh` — shared image install for Claude Code, Codex, OpenCode, Pi, and `luongnv89/pi-extensions` (opencode-pi, statusline-pi, themes)
 - `common/entrypoint-dev.sh` — optional mount notices for workspace and AI config dirs
+- `cdev run` flags `--mount-ssh`, `--mount-opencode`, `--mount-pi` (optional Pi when host dir exists)
 - `cdev` CLI (`cli/bin/cdev`) — `run`, `build`, `list`, `config`
 - `install.sh` — installs host `cdev` via `curl | bash` (default ref: `main`)
 - Dev images: [herdr](https://herdr.dev/) via `common/install-ai-tools.sh`

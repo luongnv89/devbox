@@ -16,6 +16,12 @@ assert_contains() {
 
 assert_contains "$("${CLI}" --version)" "cdev"
 assert_contains "$("${CLI}" --help)" "cdev run"
+
+RUN_HELP="$(${CLI} run --help)"
+assert_contains "$RUN_HELP" "--mount-ssh"
+assert_contains "$RUN_HELP" "--mount-opencode"
+assert_contains "$RUN_HELP" "--mount-pi"
+assert_contains "$RUN_HELP" "read-only"
 assert_contains "$("${CLI}" list)" "u2604dev"
 assert_contains "$("${CLI}" list --format json)" "u2604dev"
 assert_contains "$("${CLI}" config)" "Repo root"
