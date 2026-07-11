@@ -99,9 +99,14 @@ EOF
     volumes+=(-v "${claude_home}:/root/.claude")
   fi
 
-  local run_args=(docker run --rm -it)
+  local tty_flags=()
+  if [ -t 0 ] && [ -t 1 ]; then
+    tty_flags=(-it)
+  fi
+
+  local run_args=(docker run --rm "${tty_flags[@]}")
   if [ -n "$name" ]; then
-    run_args=(docker run -it --name "$name")
+    run_args=(docker run "${tty_flags[@]}" --name "$name")
   fi
   run_args+=("${volumes[@]}" -w /workspace "$local_tag" zsh)
 
