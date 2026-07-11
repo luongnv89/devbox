@@ -65,7 +65,7 @@ docker build -t u2604dev -f u2604dev/Dockerfile .
 
 ## Installed Packages
 
-- **CLI Tools**: git, vim, wget, curl, zsh, unzip, fontconfig
+- **CLI Tools**: git, git-lfs, openssh-client, vim, wget, curl, zsh, unzip, fontconfig
 - **Build Tools**: build-essential, ninja-build, cmake, gettext
 - **Utilities**: btop, ripgrep, bat, ca-certificates, gnupg, lsb-release
 
