@@ -150,10 +150,7 @@ With current directory mounted:
 docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
 ```
 
-Using docker compose:
-```bash
-docker compose run --rm dev zsh
-```
+Or use [`cdev run`](#using-the-cdev-cli-recommended) for mounts and optional AI config.
 
 ## Development
 
