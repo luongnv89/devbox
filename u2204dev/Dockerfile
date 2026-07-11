@@ -19,10 +19,16 @@ RUN set -eux; \
         fontconfig \
         # Monitoring and utilities
         btop ripgrep bat \
+        jq tzdata fzf fd-find \
         # Extra build tooling for editor/plugins
         ninja-build gettext cmake unzip curl; \
+    if [ -x /usr/bin/fdfind ] && [ ! -e /usr/bin/fd ]; then ln -sf /usr/bin/fdfind /usr/bin/fd; fi; \
     echo "[Base] Cleaning apt metadata"; \
     rm -rf /var/lib/apt/lists/*
+
+# GitHub CLI
+COPY common/install-gh-cli.sh /tmp/install-gh-cli.sh
+RUN chmod +x /tmp/install-gh-cli.sh && bash /tmp/install-gh-cli.sh
 
 # Initialize Git LFS hooks for the default git config
 RUN set -eux; \
@@ -36,6 +42,7 @@ RUN set -eux; \
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
+ENV TZ=Etc/UTC
 
 # Install Node.js (LTS)
 RUN set -eux; \
@@ -103,6 +110,8 @@ RUN set -eux; \
 RUN sed -i 's/^ZSH_THEME=".*"/ZSH_THEME=""/' /root/.zshrc; \
     sed -i 's/plugins=(git)/plugins=(git zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc
 
+COPY common/shell-cli-extras.zsh /root/.shell-cli-extras.zsh
+
 # Configure Starship and development-friendly terminal settings
 RUN cat <<'EOF' >> /root/.zshrc
 
@@ -120,6 +129,9 @@ alias grep='grep --color=auto'
 alias cat='bat --paging=never'
 alias catp='bat'
 alias top='btop'
+
+# jq, fzf, fd, gh helpers
+source /root/.shell-cli-extras.zsh
 
 # Git aliases
 alias gs='git status'

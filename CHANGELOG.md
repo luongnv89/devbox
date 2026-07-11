@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Base dev images (`u2204dev`, `u2404dev`, `u2604dev`): jq, tzdata, fzf, fd-find (`fd` symlink), GitHub CLI (`gh`), shared `shell-cli-extras.zsh` (fzf key bindings)
+- `common/install-gh-cli.sh` — install `gh` from GitHub’s apt repository
 - `common/install-ai-tools.sh` — shared image install for Claude Code, Codex, OpenCode, Pi, and `luongnv89/pi-extensions` (opencode-pi, statusline-pi, themes)
 - `common/entrypoint-dev.sh` — optional mount notices for workspace and AI config dirs
 - `cdev run` flags `--mount-ssh`, `--mount-opencode`, `--mount-pi` (optional Pi when host dir exists)
