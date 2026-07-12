@@ -38,7 +38,7 @@ Usage: cdev run [options]
 Create and start an interactive dev container (zsh).
 
 Options:
-  -i, --image NAME     Image (u2204dev|u2404dev|u2604dev|u2604dev-opencode)
+  -i, --image NAME     Image (u2204dev|u2404dev|u2604dev; u2604dev-opencode aliases u2604dev)
   -w, --workspace DIR  Host path mounted at /workspace (default: cwd)
   --mount-codex        Mount $HOME/.codex → /root/.codex
   --mount-claude       Mount $HOME/.claude → /root/.claude
@@ -63,6 +63,7 @@ EOF
 
   # shellcheck source=images.sh
   source "$(dirname "${BASH_SOURCE[0]}")/images.sh"
+  image="$(docker_dev_resolve_image "$image")"
   docker_dev_validate_image "$image"
   require_cmd docker
 

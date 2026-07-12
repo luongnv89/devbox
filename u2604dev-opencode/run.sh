@@ -8,14 +8,15 @@ WORKSPACE="${WORKSPACE:-$HOME/workspace}"
 SSH_PATH="${SSH_PATH:-$HOME/.ssh}"
 OPENCODE_CONFIG="${OPENCODE_CONFIG:-$HOME/.config/opencode}"
 
-# Image name
-IMAGE="u2604dev-opencode:latest"
+# Image name (u2604dev-opencode variant deprecated — use u2604dev)
+IMAGE="u2604dev:latest"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ===================================
 
-# Build image if needed
-echo "[OpenCode] Building image if needed..."
-docker build -t "$IMAGE" "$(dirname "$0")" 2>/dev/null || true
+# Build image if needed (repo root context for common/ scripts)
+echo "[cdev] Building u2604dev if needed..."
+docker build -t "$IMAGE" -f "${REPO_ROOT}/u2604dev/Dockerfile" "${REPO_ROOT}" 2>/dev/null || true
 
 # Build volume arguments
 VOLUMES=""

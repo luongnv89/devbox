@@ -29,6 +29,7 @@ EOF
 
   # shellcheck source=images.sh
   source "$(dirname "${BASH_SOURCE[0]}")/images.sh"
+  image="$(docker_dev_resolve_image "$image")"
   docker_dev_validate_image "$image"
 
   require_cmd docker
@@ -38,12 +39,6 @@ EOF
 
   local local_tag="${image}:${tag}"
   log_info "Building ${local_tag}"
-
-  if [ "$image" = "u2604dev-opencode" ]; then
-    log_verbose "Building base u2604dev:latest first"
-    docker build -t u2604dev:latest -f "${repo_root}/u2604dev/Dockerfile" "${repo_root}" \
-      || die "Base image build failed"
-  fi
 
   if ! docker build -t "$local_tag" -f "$dockerfile" "${repo_root}"; then
     die "Image build failed"
