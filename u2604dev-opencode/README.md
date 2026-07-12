@@ -1,126 +1,45 @@
 # u2604dev-opencode
 
-Docker development environment based on `u2604dev` with opencode installed.
+**Compatibility image** — thin alias of [`u2604dev`](../u2604dev/README.md). OpenCode, Pi, Claude Code, Codex, pi-extensions, and herdr are already baked into `u2604dev` via [`common/install-ai-tools.sh`](../../common/install-ai-tools.sh). This directory only adds default workspace/config directories and a distinct image name for workflows that still reference `u2604dev-opencode`.
 
-## Features
+> **Prefer `u2604dev` + `cdev`.** For day-to-day use, run `cdev run --image u2604dev` (or `u2204dev` / `u2404dev`) with `--mount-opencode`, `--mount-pi`, and related flags — see [root README](../../README.md#using-the-cdev-cli-recommended). Building `u2604dev-opencode` requires a local `u2604dev:latest` base (`FROM u2604dev:latest` in the Dockerfile).
 
-- Based on Ubuntu 26.04 development environment (u2604dev)
-- OpenCode CLI installed: https://opencode.ai/
-- SSH credentials shared from host for GitHub operations (optional)
-- Workspace folder shared from host at `~/workspace` (optional)
-- OpenCode configuration synced from host (optional)
-- Works with **Dockerfile only** - no docker-compose required
+## What the Dockerfile does
+
+| Step | Effect |
+|------|--------|
+| `FROM u2604dev:latest` | Inherits full dev + AI tooling from `u2604dev` |
+| `RUN mkdir -p /workspace /root/.config/opencode` | Ensures mount targets exist |
+| `CMD ["zsh"]` | Same interactive shell as `u2604dev` |
+
+No extra OpenCode install layer — the README previously described a separate install; that no longer matches the image.
 
 ## Quick Start
 
-### Build the image
+**Recommended** (no separate opencode image):
 
 ```bash
-cd u2604dev-opencode
-docker build -t u2604dev-opencode:latest .
+cdev run --image u2604dev --workspace "$PWD" --mount-ssh --mount-opencode --mount-pi
 ```
 
-### Run container
+If you still need the `u2604dev-opencode` tag (CI, legacy scripts):
 
 ```bash
-# Default: all volumes mounted
-docker run -it --rm \
-  -v ~/workspace:/workspace \
-  -v ~/.ssh:/root/.ssh:ro \
-  -v ~/.config/opencode:/root/.config/opencode \
-  u2604dev-opencode:latest
+# From repo root — build u2604dev first
+docker build -t u2604dev -f u2604dev/Dockerfile .
+docker build -t u2604dev-opencode:latest -f u2604dev-opencode/Dockerfile .
 
-# Or use the helper script (see below)
-./run.sh
+cdev run --image u2604dev-opencode --workspace "$PWD" --mount-ssh --mount-opencode
 ```
 
-### Inside the container
+Or plain `docker run` with the same mounts as `cdev` documents in [cli/README.md](../../cli/README.md).
 
-```bash
-# Check opencode is installed
-opencode --version
+## Legacy helper
 
-# Run opencode
-opencode
-```
+[`run.sh`](run.sh) wraps `docker run` with optional workspace, SSH, and OpenCode config paths. Prefer **`cdev run --image u2604dev-opencode`** (or `u2604dev`) when the CLI is installed.
 
-## Volume Mounts
+## Related
 
-Volumes are optional. Adjust the `docker run` command to customize:
-
-| Volume | Default Host Path | Container Path | Required |
-|--------|-----------------|--------------|----------|
-| workspace | `~/workspace` | `/workspace` | No |
-| SSH | `~/.ssh` | `/root/.ssh:ro` | No |
-| opencode config | `~/.config/opencode` | `/root/.config/opencode` | No |
-
-### Examples
-
-**Workspace only (no SSH, no config):**
-```bash
-docker run -it --rm -v ~/workspace:/workspace u2604dev-opencode:latest
-```
-
-**Custom paths:**
-```bash
-docker run -it --rm \
-  -v /my/workspace:/workspace \
-  -v /my/ssh:/root/.ssh:ro \
-  -v /my/opencode:/root/.config/opencode \
-  u2604dev-opencode:latest
-```
-
-**No volumes at all:**
-```bash
-docker run -it --rm u2604dev-opencode:latest
-```
-
-## Helper Script
-
-A `run.sh` script is provided for convenience. Edit it to customize paths:
-
-```bash
-# Edit these paths:
-WORKSPACE="/Users/you/workspace"
-SSH_PATH="$HOME/.ssh"
-OPENCODE_CONFIG="$HOME/.config/opencode"
-
-# Then run:
-./run.sh
-```
-
-## SSH Permissions
-
-The container automatically fixes SSH permissions at runtime (only if SSH volume is present):
-- `.ssh` directory: 700
-- Private keys: 600
-- Public keys: 644
-
-## Seamless Switching
-
-To switch from your host machine to this container:
-
-1. **On host**: Ensure your work is saved
-2. **Start container**: `./run.sh` or the docker run command above
-3. **In container**: Your workspace, SSH credentials, and opencode config are all available
-
-This allows you to:
-- Continue working in the same files
-- Use GitHub with your existing SSH keys
-- Use opencode with your existing configuration
-
-## First-run agent setup
-
-When you first run opencode inside the container, paste this prompt to configure the agent's persistent memory:
-
-```
-Please save the following to your persistent memory:
-
-1. SSH-based GitHub authentication is preconfigured via /root/.ssh (mounted read-only from the host). Use this for all GitHub operations (clone, push, pull). Do not generate new SSH keys or prompt for credentials.
-
-2. All project work must live under /workspace/ (the host's ~/workspace mounted as a shared volume). New projects should be cloned or created there. Existing projects are already there.
-
-3. The opencode configuration at /root/.config/opencode is shared with the host (~/.config/opencode). Changes persist across container restarts.
-```
-
-This ensures the agent uses the shared SSH credentials, works in the correct workspace, and understands the shared configuration.
+- [u2604dev/README.md](../u2604dev/README.md) — primary Ubuntu 26.04 dev image
+- [cli/README.md](../../cli/README.md) — `cdev` launcher
+- [CHANGELOG.md](../../CHANGELOG.md) — `scripts/docker-dev` deprecated in favor of `cdev`

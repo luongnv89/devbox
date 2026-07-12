@@ -7,14 +7,22 @@ This image bundles a productive CLI environment for day-to-day development on Ub
 
 ## Quick Start
 
+**Recommended:** use the [`cdev` CLI](../../cli/README.md) from the repo root or after [install](../../README.md#using-the-cdev-cli-recommended):
+
 ```bash
-# Pull from GitHub Container Registry
+cdev run --image u2604dev --workspace "$PWD"
+
+# With host Git + AI config when present
+cdev run --image u2604dev --workspace "$PWD" \
+  --mount-ssh --mount-opencode --mount-pi \
+  --mount-codex --mount-claude --build
+```
+
+Plain `docker` (no optional mounts):
+
+```bash
 docker pull ghcr.io/luongnv89/u2604dev:latest
-
-# Run interactively
 docker run --rm -it ghcr.io/luongnv89/u2604dev:latest zsh
-
-# With current directory mounted
 docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
 ```
 
@@ -51,7 +59,7 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
 ### AI / coding agents (baked in)
 
 - **OpenCode**, **Pi** (`@mariozechner/pi-coding-agent`)
-- **Claude Code** and **Codex** (npm globals; use `--mount-claude` / `--mount-codex` via [`scripts/docker-dev`](../../scripts/docker-dev) for host login state)
+- **Claude Code** and **Codex** (npm globals; use `cdev run --mount-claude` / `--mount-codex` for host login state)
 - **pi-extensions** from [`luongnv89/pi-extensions`](https://github.com/luongnv89/pi-extensions) (opencode-pi, statusline-pi, themes)
 - **[herdr](https://herdr.dev/)** — herd manager for dev tools (`/usr/local/bin/herdr`)
 

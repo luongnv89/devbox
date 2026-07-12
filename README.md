@@ -25,7 +25,7 @@ Curated Docker images for different development environments. Each image lives i
 | `u2604dev/` | Ubuntu 26.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.13, etc. | [u2604dev/README.md](u2604dev/README.md) |
 | `u2404dev/` | Ubuntu 24.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.12, etc. | [u2404dev/README.md](u2404dev/README.md) |
 | `u2204dev/` | Ubuntu 22.04 CLI/dev environment with Oh My Zsh, wedisagree theme, Vim plugins, Node.js, Python 3.12, etc. | [u2204dev/README.md](u2204dev/README.md) |
-| `u2604dev-opencode/` | Thin layer on `u2604dev` for OpenCode-focused workflows | [u2604dev-opencode/README.md](u2604dev-opencode/README.md) |
+| `u2604dev-opencode/` | Compatibility alias of `u2604dev` (same baked AI tooling; optional tag) | [u2604dev-opencode/README.md](u2604dev-opencode/README.md) |
 
 > As new images are added, follow the same pattern: create `<image-name>/Dockerfile`, add a `<image-name>/README.md`, and update this table.
 
@@ -99,7 +99,7 @@ pi --version
 
 Mount paths inside the container: `/workspace`, `/root/.ssh` (ro), `/root/.config/opencode`, `/root/.pi`, `/root/.codex`, `/root/.claude`.
 
-Legacy helper: [u2604dev-opencode/run.sh](u2604dev-opencode/run.sh) (prefer `scripts/docker-dev`).
+Legacy helper: [u2604dev-opencode/run.sh](u2604dev-opencode/run.sh) (prefer `cdev run --image u2604dev` or `u2604dev-opencode`).
 
 ## Documentation
 
