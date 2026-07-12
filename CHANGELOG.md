@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Corepack** enabled in dev images for pnpm/Yarn; documented in README and shell welcome
+- **`common/install-uv.sh`** — Astral uv for fast Python venvs alongside distro `python3 -m venv`
 - **`cdev run --preset`** — `ai` and `full` workflow presets; documented in `cdev run --help`, root README, and `cli/README.md`
 - **Sandbox authentication docs** — README and `cli/README.md` sections for AI CLI credentials, mount paths, and env vars (placeholders only)
 - `cli/lib/presets.sh` — preset definitions; interactive mount prompts reference auth docs when declined

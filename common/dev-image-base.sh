@@ -71,6 +71,15 @@ apt-get update
 apt-get install -y nodejs
 rm -rf /var/lib/apt/lists/*
 
+echo "[Node] Enabling Corepack (pnpm, yarn)"
+if command -v corepack >/dev/null 2>&1; then
+  corepack enable
+else
+  echo "[Node] Warning: corepack not bundled with nodejs; install pnpm/yarn manually" >&2
+fi
+
+bash "${SCRIPT_DIR}/install-uv.sh"
+
 echo "[Zsh] Installing Oh My Zsh"
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 
@@ -136,7 +145,7 @@ alias gp='git push'
 alias gl='git log --oneline --graph --decorate'
 alias gd='git diff'
 
-# Python virtual environment helpers
+# Python virtual environment helpers (stdlib venv or uv)
 alias venv='python3 -m venv venv'
 alias activate='source venv/bin/activate'
 
@@ -180,8 +189,14 @@ echo "Editor: Vim with plugins"
 if command -v opencode >/dev/null 2>&1; then echo "AI: opencode \$(opencode --version 2>/dev/null | head -1)"; fi
 if command -v pi >/dev/null 2>&1; then echo "AI: pi \$(pi --version 2>/dev/null | head -1)"; fi
 echo "\$PY_VER"
+if command -v uv >/dev/null 2>&1; then
+  echo "uv \$(uv --version 2>/dev/null | head -1) — try: uv venv && source .venv/bin/activate"
+fi
 echo "\$NODE_VER"
 echo "\$NPM_VER"
+if command -v corepack >/dev/null 2>&1; then
+  echo "Package managers: corepack enable — pnpm install / yarn install (global npm AI CLIs unchanged)"
+fi
 echo ""
 
 EOF

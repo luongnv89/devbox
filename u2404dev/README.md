@@ -46,7 +46,9 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 |------|---------|
 | Node.js | LTS |
 | npm | Latest |
+| pnpm / Yarn | via Corepack (Node LTS) |
 | Python | 3.12 |
+| uv | Latest (Astral; `/usr/local/bin`) |
 | git | Latest |
 | ripgrep | Latest |
 | bat | Latest |
@@ -109,9 +111,10 @@ alias gp='git push'
 alias gl='git log --oneline --graph --decorate'
 alias gd='git diff'
 
-# Python
+# Python (stdlib venv or uv)
 alias venv='python3 -m venv venv'
 alias activate='source venv/bin/activate'
+# uv: uv venv && source .venv/bin/activate
 ```
 
 ## Environment Variables

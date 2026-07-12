@@ -7,7 +7,7 @@ ENV DEV_IMAGE_NAME=u2604dev
 ENV UBUNTU_VERSION=26.04
 
 COPY common/install-python.sh common/dev-image-base.sh \
-  common/install-gh-cli.sh common/install-docker-cli.sh \
+  common/install-uv.sh common/install-gh-cli.sh common/install-docker-cli.sh \
   common/install-ai-tools.sh common/shell-cli-extras.zsh \
   common/setup-dev-user.sh common/finalize-dev-image.sh \
   /opt/common/
