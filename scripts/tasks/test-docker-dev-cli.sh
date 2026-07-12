@@ -19,9 +19,11 @@ assert_contains "$("${CLI}" --help)" "cdev run"
 
 BUILD_HELP="$(${CLI} build --help)"
 assert_contains "$BUILD_HELP" "--profile"
+assert_contains "$BUILD_HELP" "--nonroot"
 
 RUN_HELP="$(${CLI} run --help)"
 assert_contains "$RUN_HELP" "--profile"
+assert_contains "$RUN_HELP" "--nonroot"
 assert_contains "$RUN_HELP" "--mount-ssh"
 assert_contains "$RUN_HELP" "--mount-opencode"
 assert_contains "$RUN_HELP" "--mount-pi"
@@ -58,6 +60,19 @@ PROFILE_TAG="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
   docker_dev_profile_image_tag minimal
 ')"
 [ "$PROFILE_TAG" = "latest-minimal" ] || { echo "expected latest-minimal, got: ${PROFILE_TAG}" >&2; exit 1; }
+
+HOME_ROOT="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
+  source "${CDEV_REPO}/cli/lib/common.sh"
+  source "${CDEV_REPO}/cli/lib/nonroot.sh"
+  docker_dev_home_for_mounts 0
+')"
+[ "$HOME_ROOT" = "/root" ] || { echo "expected /root, got: ${HOME_ROOT}" >&2; exit 1; }
+HOME_DEV="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
+  source "${CDEV_REPO}/cli/lib/common.sh"
+  source "${CDEV_REPO}/cli/lib/nonroot.sh"
+  docker_dev_home_for_mounts 1
+')"
+[ "$HOME_DEV" = "/home/dev" ] || { echo "expected /home/dev, got: ${HOME_DEV}" >&2; exit 1; }
 
 if "${CLI}" bogus 2>/dev/null; then
   echo "Expected failure for unknown command" >&2

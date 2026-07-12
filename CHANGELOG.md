@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Optional non-root `dev` user** for bind-mount sandboxes: `DEV_CREATE_NONROOT_USER`, `DEV_UID`, `DEV_GID` build args; `common/setup-dev-user.sh`; `cdev build|run --nonroot`; default `WORKDIR /workspace`
 - **Build profiles** for dev images (`minimal`, `standard`, `ai-full`): `DEV_IMAGE_PROFILE` build arg, branched `common/install-ai-tools.sh`, GHCR tags `latest` / `latest-standard` / `latest-minimal`, `cdev build|run --profile`
 - `cli/lib/profiles.sh` — profile validation and image tag mapping
 - `common/install-docker-cli.sh` — Docker CLI (client) in dev images; optional `docker-compose-v2` when available on the base
