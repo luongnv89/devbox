@@ -12,6 +12,7 @@ docker_dev_cmd_run() {
   local mount_ssh=0
   local mount_opencode=0
   local mount_pi=0
+  local mount_docker_socket=0
   local do_build=0
   local do_pull=0
   local name=""
@@ -25,6 +26,7 @@ docker_dev_cmd_run() {
       --mount-ssh) mount_ssh=1; shift ;;
       --mount-opencode) mount_opencode=1; shift ;;
       --mount-pi) mount_pi=1; shift ;;
+      --mount-docker-socket) mount_docker_socket=1; shift ;;
       --build) do_build=1; shift ;;
       --pull) do_pull=1; shift ;;
       -n|--name) name="$2"; shift 2 ;;
@@ -43,6 +45,10 @@ Options:
   --mount-ssh          Mount $HOME/.ssh → /root/.ssh (read-only)
   --mount-opencode     Mount $HOME/.config/opencode → /root/.config/opencode
   --mount-pi           Mount $HOME/.pi → /root/.pi when present on host
+  --mount-docker-socket
+                       Mount host Docker socket (/var/run/docker.sock) so the
+                       in-container docker CLI talks to the host daemon.
+                       Grants container processes host-level Docker API access.
   --build              Build image before run
   --pull               Pull from ghcr.io/luongnv89/IMAGE:latest
   -n, --name NAME      Container name (omit --rm behavior when set)
@@ -66,7 +72,8 @@ EOF
 
   if [ "${DOCKER_DEV_INTERACTIVE:-1}" -eq 1 ] && [ -t 0 ] && [ -z "$workspace" ] \
     && [ "$mount_codex" -eq 0 ] && [ "$mount_claude" -eq 0 ] \
-    && [ "$mount_ssh" -eq 0 ] && [ "$mount_opencode" -eq 0 ] && [ "$mount_pi" -eq 0 ]; then
+    && [ "$mount_ssh" -eq 0 ] && [ "$mount_opencode" -eq 0 ] && [ "$mount_pi" -eq 0 ] \
+    && [ "$mount_docker_socket" -eq 0 ]; then
     echo "◆ cdev run"
     echo "  Image: ${image}"
     prompt_yes_no "Mount Codex config from \$HOME/.codex?" y && mount_codex=1 || true
@@ -74,6 +81,7 @@ EOF
     prompt_yes_no "Mount SSH config from \$HOME/.ssh (read-only)?" y && mount_ssh=1 || true
     prompt_yes_no "Mount OpenCode config from \$HOME/.config/opencode?" y && mount_opencode=1 || true
     prompt_yes_no "Mount Pi agent config from \$HOME/.pi (when present)?" y && mount_pi=1 || true
+    prompt_yes_no "Mount host Docker socket (docker CLI in image → host daemon)?" n && mount_docker_socket=1 || true
     if [ -z "$workspace" ]; then
       read -r -p "Workspace directory [${PWD}]: " ws || true
       workspace="${ws:-$PWD}"
@@ -126,6 +134,12 @@ EOF
     volumes+=(-v "${opencode_home}:/root/.config/opencode")
   fi
 
+  if [ "$mount_docker_socket" -eq 1 ]; then
+    local sock="/var/run/docker.sock"
+    [ -S "$sock" ] || die "Docker socket not found: ${sock} (is Docker running on the host?)"
+    volumes+=(-v "${sock}:/var/run/docker.sock")
+  fi
+
   local pi_mounted=0
   if [ "$mount_pi" -eq 1 ]; then
     local pi_home="${HOME}/.pi"
@@ -156,6 +170,7 @@ EOF
     [ "$mount_ssh" -eq 1 ] && echo "  SSH:        \$HOME/.ssh → /root/.ssh (ro)"
     [ "$mount_opencode" -eq 1 ] && echo "  OpenCode:   \$HOME/.config/opencode → /root/.config/opencode"
     [ "$pi_mounted" -eq 1 ] && echo "  Pi:         \$HOME/.pi → /root/.pi"
+    [ "$mount_docker_socket" -eq 1 ] && echo "  Docker:     /var/run/docker.sock (host daemon — privileged)"
     echo ""
     log_verbose "Command: ${run_args[*]}"
     echo "  Shell:      zsh (exit to leave)"

@@ -15,7 +15,7 @@ Curated Docker images for different development environments. Each image lives i
 - **Security Scanned**: Images are scanned with Trivy for vulnerabilities
 - **Pre-commit Hooks**: Automated formatting, linting, and testing on every commit
 - **Production Ready**: Artifact attestation for image provenance
-- **Coding-ready images**: git, vim, zsh, Starship, jq, fzf, fd, gh, tzdata (`TZ=Etc/UTC`, overridable), OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
+- **Coding-ready images**: git, vim, zsh, Starship, jq, fzf, fd, gh, **Docker CLI** (client only), tzdata (`TZ=Etc/UTC`, overridable), OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
 - **`cdev` CLI**: Interactive launcher with optional workspace, SSH, OpenCode, Pi, `~/.codex`, and `~/.claude` mounts
 
 ## Available Images
@@ -98,6 +98,22 @@ pi --version
 ```
 
 Mount paths inside the container: `/workspace`, `/root/.ssh` (ro), `/root/.config/opencode`, `/root/.pi`, `/root/.codex`, `/root/.claude`.
+
+#### Docker / Compose from inside the sandbox
+
+Images include the **Docker CLI** (not the daemon). To run `docker` or `docker compose` against your **host** engine, bind-mount the socket (opt-in):
+
+```bash
+cdev run --image u2604dev --workspace "$PWD" --mount-docker-socket --build
+```
+
+Equivalent `docker run`:
+
+```bash
+docker run --rm -it -v "$PWD":/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/luongnv89/u2604dev:latest zsh
+```
+
+**Security:** Anything in the container that can use `/var/run/docker.sock` can control the host Docker API (start privileged containers, mount host paths, etc.). Use `--mount-docker-socket` only on trusted projects and avoid sharing that container with untrusted code. See [Docker daemon attack surface](https://docs.docker.com/engine/security/#docker-daemon-attack-surface).
 
 Legacy helper: [u2604dev-opencode/run.sh](u2604dev-opencode/run.sh) (prefer `cdev run --image u2604dev` or `u2604dev-opencode`).
 

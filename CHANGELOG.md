@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `common/install-docker-cli.sh` — Docker CLI (client) in dev images; optional `docker-compose-v2` when available on the base
+- `cdev run --mount-docker-socket` — bind host `/var/run/docker.sock` for in-container compose workflows
 - Base dev images (`u2204dev`, `u2404dev`, `u2604dev`): jq, tzdata, fzf, fd-find (`fd` symlink), GitHub CLI (`gh`), shared `shell-cli-extras.zsh` (fzf key bindings)
 - `common/install-gh-cli.sh` — install `gh` from GitHub’s apt repository
 - `common/install-ai-tools.sh` — shared image install for Claude Code, Codex, OpenCode, Pi, and `luongnv89/pi-extensions` (opencode-pi, statusline-pi, themes)
@@ -22,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `common/install-ai-tools.sh`: pin global npm AI CLI versions; see CONTRIBUTING for bump process
-- `u2204dev`, `u2404dev`, `u2604dev` Dockerfiles: repo-root build context, AI tooling baked in, shared entrypoint
+- `u2204dev`, `u2404dev`, `u2604dev` Dockerfiles: repo-root build context, AI tooling baked in, shared entrypoint; Oh My Zsh `docker` plugin re-enabled with installed CLI
 - CI and pre-commit test builds use repository root as Docker build context
 - README: document `docker-dev` CLI and fix obsolete docker compose instructions
 
