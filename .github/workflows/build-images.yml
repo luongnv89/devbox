@@ -60,13 +60,14 @@ jobs:
           echo "images=${JSON_IMAGES}" >> $GITHUB_OUTPUT
 
   build:
-    name: Build ${{ matrix.image }}
+    name: Build ${{ matrix.image }} (${{ matrix.profile }})
     needs: detect-changes
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         image: ${{ fromJson(needs.detect-changes.outputs.images) }}
+        profile: [ai-full, minimal, standard]
         include:
           - image: u2204dev
             dockerfile: u2204dev/Dockerfile
@@ -109,11 +110,13 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
           tags: |
-            type=raw,value=latest
-            type=sha
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ matrix.profile == 'ai-full' }}
+            type=raw,value=latest-minimal,enable=${{ matrix.profile == 'minimal' }}
+            type=raw,value=latest-standard,enable=${{ matrix.profile == 'standard' }}
+            type=sha,enable=${{ matrix.profile == 'ai-full' }}
+            type=ref,event=branch,enable=${{ matrix.profile == 'ai-full' }}
+            type=semver,pattern={{version}},enable=${{ matrix.profile == 'ai-full' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ matrix.profile == 'ai-full' }}
 
       - name: Build and push Docker image
         id: build
@@ -121,16 +124,18 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
+          build-args: |
+            DEV_IMAGE_PROFILE=${{ matrix.profile }}
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.profile }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.profile }}
           provenance: true
 
       - name: Generate Artifact Attestation
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.profile == 'ai-full'
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
@@ -138,7 +143,7 @@ jobs:
           push-to-registry: true
 
       - name: Security Scan with Trivy
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.profile == 'ai-full'
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
@@ -148,14 +153,14 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.profile == 'ai-full'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
           category: '/${{ matrix.image }}'
 
       - name: Inspect final image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.profile == 'ai-full'
         run: |
           image_ref="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}"
           echo "=== ${image_ref} ==="

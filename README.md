@@ -26,7 +26,15 @@ Curated Docker images for different development environments. Each image lives i
 | `u2404dev/` | Ubuntu 24.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.12, etc. | [u2404dev/README.md](u2404dev/README.md) |
 | `u2204dev/` | Ubuntu 22.04 CLI/dev environment with Oh My Zsh, wedisagree theme, Vim plugins, Node.js, Python 3.12, etc. | [u2204dev/README.md](u2204dev/README.md) |
 
-CI publishes **u2204dev**, **u2404dev**, and **u2604dev** only (see [.github/workflows/build-images.yml](.github/workflows/build-images.yml)). OpenCode, Pi, and related AI CLIs are baked into those images via `common/install-ai-tools.sh`.
+CI publishes **u2204dev**, **u2404dev**, and **u2604dev** only (see [.github/workflows/build-images.yml](.github/workflows/build-images.yml)). Each image is built in three **profiles** (build arg `DEV_IMAGE_PROFILE`):
+
+| Profile | GHCR tag | AI tooling |
+|---------|----------|------------|
+| `ai-full` (default) | `:latest` | Claude Code, Codex, OpenCode, Pi, pi-extensions, herdr |
+| `standard` | `:latest-standard` | OpenCode, Pi (+ npm pi extensions) |
+| `minimal` | `:latest-minimal` | None (terminal, Node, Python, vim, zsh only) |
+
+Use `cdev build --profile minimal` or `cdev run --pull --profile standard` to select a profile locally.
 
 **Migration from `u2604dev-opencode`:** use `cdev run --image u2604dev` with `--mount-opencode` and `--mount-pi`. The legacy name still resolves to `u2604dev` with a deprecation notice. Optional local Dockerfile: [u2604dev-opencode/README.md](u2604dev-opencode/README.md).
 
@@ -56,6 +64,8 @@ docker run --rm -it ghcr.io/luongnv89/u2604dev:latest zsh
 Build a specific image (context is repo root so `common/` scripts are included):
 ```bash
 docker build -t my-dev-env -f u2604dev/Dockerfile .
+# Smaller image without global AI npm CLIs:
+docker build --build-arg DEV_IMAGE_PROFILE=minimal -t my-dev-env:minimal -f u2604dev/Dockerfile .
 ```
 
 Run locally built image:

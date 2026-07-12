@@ -17,7 +17,11 @@ assert_contains() {
 assert_contains "$("${CLI}" --version)" "cdev"
 assert_contains "$("${CLI}" --help)" "cdev run"
 
+BUILD_HELP="$(${CLI} build --help)"
+assert_contains "$BUILD_HELP" "--profile"
+
 RUN_HELP="$(${CLI} run --help)"
+assert_contains "$RUN_HELP" "--profile"
 assert_contains "$RUN_HELP" "--mount-ssh"
 assert_contains "$RUN_HELP" "--mount-opencode"
 assert_contains "$RUN_HELP" "--mount-pi"
@@ -42,6 +46,18 @@ if "${CLI}" build --image badimage 2>/dev/null; then
   echo "Expected failure for bad image" >&2
   exit 1
 fi
+
+if "${CLI}" build --profile notreal --image u2604dev 2>/dev/null; then
+  echo "Expected failure for bad profile" >&2
+  exit 1
+fi
+
+PROFILE_TAG="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
+  source "${CDEV_REPO}/cli/lib/common.sh"
+  source "${CDEV_REPO}/cli/lib/profiles.sh"
+  docker_dev_profile_image_tag minimal
+')"
+[ "$PROFILE_TAG" = "latest-minimal" ] || { echo "expected latest-minimal, got: ${PROFILE_TAG}" >&2; exit 1; }
 
 if "${CLI}" bogus 2>/dev/null; then
   echo "Expected failure for unknown command" >&2

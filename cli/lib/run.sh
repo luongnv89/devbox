@@ -5,7 +5,8 @@ docker_dev_cmd_run() {
   shift
 
   local image="u2604dev"
-  local image_tag="latest"
+  local profile=""
+  local image_tag=""
   local workspace=""
   local mount_codex=0
   local mount_claude=0
@@ -20,6 +21,7 @@ docker_dev_cmd_run() {
   while [ $# -gt 0 ]; do
     case "$1" in
       -i|--image) image="$2"; shift 2 ;;
+      -p|--profile) profile="$2"; shift 2 ;;
       -w|--workspace) workspace="$2"; shift 2 ;;
       --mount-codex) mount_codex=1; shift ;;
       --mount-claude) mount_claude=1; shift ;;
@@ -49,8 +51,9 @@ Options:
                        Mount host Docker socket (/var/run/docker.sock) so the
                        in-container docker CLI talks to the host daemon.
                        Grants container processes host-level Docker API access.
-  --build              Build image before run
-  --pull               Pull from ghcr.io/luongnv89/IMAGE:latest
+  -p, --profile NAME   Image profile: minimal, standard, ai-full (default: ai-full)
+  --build              Build image before run (uses --profile)
+  --pull               Pull from ghcr.io/luongnv89/IMAGE (tag from --profile)
   -n, --name NAME      Container name (omit --rm behavior when set)
   --no-interactive     Skip prompts
   -h, --help           Show help
@@ -63,8 +66,17 @@ EOF
 
   # shellcheck source=images.sh
   source "$(dirname "${BASH_SOURCE[0]}")/images.sh"
+  # shellcheck source=profiles.sh
+  source "$(dirname "${BASH_SOURCE[0]}")/profiles.sh"
   image="$(docker_dev_resolve_image "$image")"
   docker_dev_validate_image "$image"
+  if [ -z "$profile" ]; then
+    profile="$DOCKER_DEV_DEFAULT_PROFILE"
+  fi
+  docker_dev_validate_profile "$profile"
+  if [ -z "$image_tag" ]; then
+    image_tag="$(docker_dev_profile_image_tag "$profile")"
+  fi
   require_cmd docker
 
   if [ "$do_pull" -eq 1 ] && [ "$do_build" -eq 1 ]; then
@@ -98,13 +110,14 @@ EOF
   [ -f "$dockerfile" ] || die "Dockerfile not found: ${dockerfile}"
 
   if [ "$do_pull" -eq 1 ]; then
-    log_info "Pulling ghcr.io/luongnv89/${image}:latest"
-    docker pull "ghcr.io/luongnv89/${image}:latest" || die "Pull failed"
-    local_tag="ghcr.io/luongnv89/${image}:latest"
+    log_info "Pulling ghcr.io/luongnv89/${image}:${image_tag} (profile: ${profile})"
+    docker pull "ghcr.io/luongnv89/${image}:${image_tag}" || die "Pull failed"
+    local_tag="ghcr.io/luongnv89/${image}:${image_tag}"
   fi
 
   if [ "$do_build" -eq 1 ]; then
-    docker_dev_cmd_build "$repo_root" --image "$image" --tag "$image_tag" || exit $?
+    docker_dev_cmd_build "$repo_root" --image "$image" --profile "$profile" || exit $?
+    local_tag="${image}:${image_tag}"
   fi
 
   local volumes=(-v "${workspace}:/workspace")
