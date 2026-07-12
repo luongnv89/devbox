@@ -204,10 +204,17 @@ Legacy helper [u2604dev-opencode/run.sh](u2604dev-opencode/run.sh) now targets `
 
 | Topic | File |
 |-------|------|
+| Architecture & CI layout | [docs/architecture.md](docs/architecture.md) |
+| Development setup | [docs/development.md](docs/development.md) |
+| Troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
+| Doc change log | [docs/DECISIONS.md](docs/DECISIONS.md) |
+| `cdev` CLI | [cli/README.md](cli/README.md) |
 | Contributing guidelines | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Code of conduct | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
 | Security policy | [SECURITY.md](SECURITY.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
+
+> Validate install/runbook checks: `./scripts/validate-cdev-install.sh --check`, `./scripts/validate-dev-environment.sh --check` (`scripts/validate-cdev-install.sh`, `scripts/validate-dev-environment.sh`).
 
 ## Installation
 
@@ -303,7 +310,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-image) for detailed instructi
 
 The repository uses GitHub Actions for automated builds:
 
-- **Matrix workflow**: Builds all 4 images with multi-platform support
+- **Matrix workflow**: Builds **u2204dev**, **u2404dev**, and **u2604dev** (three profiles each) with multi-platform support (`.github/workflows/build-images.yml:57-89`)
 - **Path-based detection**: Only builds images that changed
 - **Security scanning**: Trivy scans for vulnerabilities
 - **Artifact attestation**: Provenance for published images

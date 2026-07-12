@@ -33,7 +33,7 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2204dev:latest zsh
 - **Oh My Zsh** with custom `wedisagree` theme
 - **Starship** prompt for a fast, cross-shell experience (on some variants)
 - Oh My Zsh plugins (built-in + custom): `git`, `npm`, `pip`, `python`, plus custom plugins zsh-syntax-highlighting, zsh-autosuggestions, zsh-completions
-- **Docker CLI and kubectl are not installed** in the image (sandbox-friendly); Starship may still show container context when running inside Docker.
+- **Docker CLI** (client only) via `common/install-docker-cli.sh` (`common/dev-image-base.sh:57-58`). **kubectl** is not installed (`u2204dev/wedisagree.zsh-theme:129-130`).
 
 ### Editor
 
@@ -144,12 +144,13 @@ alias activate='source venv/bin/activate'
 
 ## Published Tags
 
-| Tag | Description |
-|-----|-------------|
-| `latest` | Latest stable release |
-| `sha-{git-sha}` | Specific commit SHA |
-| `{major}.{minor}` | Minor version (e.g., 1.0) |
-| `{major}` | Major version (e.g., 1) |
+| Tag | Profile |
+|-----|---------|
+| `latest` | `ai-full` |
+| `latest-standard` | `standard` |
+| `latest-minimal` | `minimal` |
+
+(`.github/workflows/build-images.yml:130-136`.)
 
 ## CI/CD
 
@@ -165,7 +166,7 @@ To modify this image:
 
 1. Edit `u2204dev/Dockerfile`
 2. Update this README if adding/removing features
-3. Test with: `docker build -t test-u2204dev -f u2204dev/Dockerfile u2204dev`
+3. Test with: `docker build -t test-u2204dev -f u2204dev/Dockerfile .`
 4. Submit a PR
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for full guidelines.
