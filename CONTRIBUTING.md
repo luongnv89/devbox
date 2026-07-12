@@ -66,7 +66,7 @@ Build any image locally for testing:
 
 ```bash
 # Build a specific image
-docker build -t my-test -f u2604dev/Dockerfile u2604dev
+docker build -t my-test -f u2604dev/Dockerfile .
 
 # Run interactive shell
 docker run --rm -it my-test zsh
@@ -78,11 +78,11 @@ Always test your changes by building the relevant image:
 
 ```bash
 # Test u2604dev changes
-docker build -t test-u2604dev -f u2604dev/Dockerfile u2604dev
+docker build -t test-u2604dev -f u2604dev/Dockerfile .
 
 # Test all images
 for dir in u2204dev u2404dev u2604dev; do
-  docker build -t "test-${dir}" -f "${dir}/Dockerfile" "${dir}"
+  docker build -t "test-${dir}" -f "${dir}/Dockerfile" .
 done
 ```
 
@@ -96,7 +96,7 @@ To add a new development environment image:
 mkdir -p uYYMMdev
 ```
 
-2. Create a `Dockerfile` in the new directory following existing patterns
+2. Create a thin `Dockerfile` in the new directory (base tag, `UBUNTU_VERSION`, image-specific `.vimrc` / `starship.toml`); shared steps live in `common/dev-image-base.sh` and `common/install-python.sh`
 
 3. Create a `README.md` with:
    - Image description
