@@ -32,6 +32,10 @@ RUN set -eux; \
 COPY common/install-gh-cli.sh /tmp/install-gh-cli.sh
 RUN chmod +x /tmp/install-gh-cli.sh && bash /tmp/install-gh-cli.sh
 
+# Docker CLI (client only — use host daemon via optional socket mount)
+COPY common/install-docker-cli.sh /tmp/install-docker-cli.sh
+RUN chmod +x /tmp/install-docker-cli.sh && bash /tmp/install-docker-cli.sh
+
 # Initialize Git LFS hooks for the default git config
 RUN set -eux; \
     echo "[Git LFS] Running git lfs install"; \
@@ -104,7 +108,7 @@ RUN set -eux; \
 
 # Configure Oh My Zsh plugins (disable default theme for Starship)
 RUN sed -i 's/^ZSH_THEME=".*"/ZSH_THEME=""/' /root/.zshrc; \
-    sed -i 's/plugins=(git)/plugins=(git zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc
+    sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc
 
 COPY common/shell-cli-extras.zsh /root/.shell-cli-extras.zsh
 

@@ -20,7 +20,7 @@ From a repository checkout:
 
 | Command | Description |
 |---------|-------------|
-| `cdev run` | Build/pull and start interactive zsh session |
+| `cdev run` | Build/pull and start interactive zsh session (optional `--mount-docker-socket`) |
 | `cdev build` | Build image locally |
 | `cdev list` | Show image names (`--format json`) |
 | `cdev config` | Show repo root and mount paths |
@@ -31,10 +31,19 @@ From a repository checkout:
 - `-v` / `--verbose`, `-q` / `--quiet`, `--no-color`
 - `--repo PATH` or `CDEV_REPO`
 
+## Host Docker socket (optional)
+
+Dev images ship the Docker **client** only. Pass `--mount-docker-socket` to bind `/var/run/docker.sock` so `docker` / `docker compose` inside the container use the host daemon. This is **privileged**: processes in the container can administer Docker on the host. Default interactive prompt answers **no**; pass the flag explicitly in scripts.
+
+```bash
+cdev run --image u2604dev -w "$PWD" --mount-docker-socket --build
+```
+
 ## Development
 
 ```bash
 export CDEV_REPO="$PWD"
 ./cli/bin/cdev list
 ./scripts/tasks/test-docker-dev-cli.sh
+./scripts/validate-ohmyzsh-plugins.sh
 ```
