@@ -73,6 +73,20 @@ Run locally built image:
 docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
 ```
 
+#### Non-root sandbox (bind-mount friendly)
+
+By default containers start as **root**, which can leave root-owned files on bind-mounted `/workspace`. Opt in at **build** time with `DEV_CREATE_NONROOT_USER=1` (creates user `dev`, passwordless `sudo`, default `WORKDIR /workspace`):
+
+```bash
+docker build \
+  --build-arg DEV_CREATE_NONROOT_USER=1 \
+  --build-arg DEV_UID="$(id -u)" --build-arg DEV_GID="$(id -g)" \
+  -t my-dev-env:nonroot -f u2604dev/Dockerfile .
+docker run --rm -it --user "$(id -u):$(id -g)" -v "$PWD":/workspace my-dev-env:nonroot zsh
+```
+
+With **`cdev`**: `cdev build --nonroot` then `cdev run --nonroot --build` (build passes your host uid/gid; run uses `--user` and mounts AI/SSH config under `/home/dev`). Published GHCR `:latest` images remain root-by-default; non-root is a local or custom-registry build.
+
 ### Using the `cdev` CLI (recommended)
 
 **One-line install** — installs **`cdev`** to `~/.local/bin` and clones the images repo to `~/.local/share/docker-dev`. **[herdr](https://herdr.dev/)** is installed inside dev images:
@@ -110,7 +124,7 @@ opencode --version
 pi --version
 ```
 
-Mount paths inside the container: `/workspace`, `/root/.ssh` (ro), `/root/.config/opencode`, `/root/.pi`, `/root/.codex`, `/root/.claude`.
+Mount paths inside the container: `/workspace`, and under `/root` (default) or `/home/dev` with `--nonroot`: `.ssh` (ro), `.config/opencode`, `.pi`, `.codex`, `.claude`.
 
 #### Docker / Compose from inside the sandbox
 
