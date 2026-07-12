@@ -1,351 +1,329 @@
-<p align="center"><img src="logo.png" alt="docker-dev Logo" width="400"></p>
-
-# docker-dev
+<p align="center"><img src="logo.png" alt="docker-dev logo" width="400"></p>
 
 [![Build and Publish](https://github.com/luongnv89/docker-dev/actions/workflows/build-images.yml/badge.svg)](https://github.com/luongnv89/docker-dev/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/luongnv89/docker-dev)](https://github.com/luongnv89/docker-dev/stargazers)
 
-Curated Docker images for different development environments. Each image lives in its own directory (e.g., `u2204dev/`) with a dedicated Dockerfile and per-image README describing that environment.
+# Start AI coding tools in disposable containers
 
-## Features
+`cdev` opens your project in a coding-ready Ubuntu container with Claude Code, Codex, OpenCode, Pi, and herdr already installed.
 
-- **Multi-Platform Support**: Builds for linux/amd64 and linux/arm64 (M-series Macs, ARM servers)
-- **Automated CI/CD**: GitHub Actions builds and publishes to GitHub Container Registry
-- **Security Scanned**: Images are scanned with Trivy for vulnerabilities
-- **Pre-commit Hooks**: Automated formatting, linting, and testing on every commit
-- **Production Ready**: Artifact attestation for image provenance
-- **Coding-ready images**: git, vim, zsh, Starship, jq, fzf, fd, gh, **Docker CLI** (client only), tzdata (`TZ=Etc/UTC`, overridable), Node.js LTS with **Corepack** (pnpm/yarn), **uv** for Python envs, OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
-- **`cdev` CLI**: Interactive launcher with optional workspace, SSH, OpenCode, Pi, `~/.codex`, and `~/.claude` mounts
+[**Install and start →**](#getting-started)
 
-## Available Images
+## Getting Started
 
-| Folder | Description | Docs |
-|--------|-------------|------|
-| `u2604dev/` | Ubuntu 26.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.13, etc. | [u2604dev/README.md](u2604dev/README.md) |
-| `u2404dev/` | Ubuntu 24.04 CLI/dev environment with Oh My Zsh, Starship prompt, Vim plugins, Node.js LTS, Python 3.12, etc. | [u2404dev/README.md](u2404dev/README.md) |
-| `u2204dev/` | Ubuntu 22.04 CLI/dev environment with Oh My Zsh, wedisagree theme, Vim plugins, Node.js, Python 3.12, etc. | [u2204dev/README.md](u2204dev/README.md) |
+Requirements: Docker Desktop or Docker Engine, Git, Bash, and curl.
 
-CI publishes **u2204dev**, **u2404dev**, and **u2604dev** only (see [.github/workflows/build-images.yml](.github/workflows/build-images.yml)). Each image is built in three **profiles** (build arg `DEV_IMAGE_PROFILE`):
+1. Install `cdev`:
 
-| Profile | GHCR tag | AI tooling |
-|---------|----------|------------|
-| `ai-full` (default) | `:latest` | Claude Code, Codex, OpenCode, Pi, pi-extensions, herdr |
-| `standard` | `:latest-standard` | OpenCode, Pi (+ npm pi extensions) |
-| `minimal` | `:latest-minimal` | None (terminal, Node, Python, vim, zsh only) |
-
-Use `cdev build --profile minimal` or `cdev run --pull --profile standard` to select a profile locally.
-
-**Migration from `u2604dev-opencode`:** use `cdev run --image u2604dev` with `--mount-opencode` and `--mount-pi`. The legacy name still resolves to `u2604dev` with a deprecation notice. Optional local Dockerfile: [u2604dev-opencode/README.md](u2604dev-opencode/README.md).
-
-> As new images are added, follow the same pattern: create `<image-name>/Dockerfile`, add a `<image-name>/README.md`, and update this table.
-
-## Quick Start
-
-### Pull and Run
-
-Authenticate with GitHub Container Registry:
-```bash
-echo "${GH_PAT}" | docker login ghcr.io -u <your-github-username> --password-stdin
-```
-
-Pull an image:
-```bash
-docker pull ghcr.io/luongnv89/u2604dev:latest
-```
-
-Run the container:
-```bash
-docker run --rm -it ghcr.io/luongnv89/u2604dev:latest zsh
-```
-
-### Build Locally
-
-Build a specific image (context is repo root so `common/` scripts are included):
-```bash
-docker build -t my-dev-env -f u2604dev/Dockerfile .
-# Smaller image without global AI npm CLIs:
-docker build --build-arg DEV_IMAGE_PROFILE=minimal -t my-dev-env:minimal -f u2604dev/Dockerfile .
-```
-
-Run locally built image:
-```bash
-docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
-```
-
-#### Non-root sandbox (bind-mount friendly)
-
-By default containers start as **root**, which can leave root-owned files on bind-mounted `/workspace`. Opt in at **build** time with `DEV_CREATE_NONROOT_USER=1` (creates user `dev`, passwordless `sudo`, default `WORKDIR /workspace`):
-
-```bash
-docker build \
-  --build-arg DEV_CREATE_NONROOT_USER=1 \
-  --build-arg DEV_UID="$(id -u)" --build-arg DEV_GID="$(id -g)" \
-  -t my-dev-env:nonroot -f u2604dev/Dockerfile .
-docker run --rm -it --user "$(id -u):$(id -g)" -v "$PWD":/workspace my-dev-env:nonroot zsh
-```
-
-With **`cdev`**: `cdev build --nonroot` then `cdev run --nonroot --build` (build passes your host uid/gid; run uses `--user` and mounts AI/SSH config under `/home/dev`). Published GHCR `:latest` images remain root-by-default; non-root is a local or custom-registry build.
-
-### Using the `cdev` CLI (recommended)
-
-**One-line install** — installs **`cdev`** to `~/.local/bin` and clones the images repo to `~/.local/share/docker-dev`. **[herdr](https://herdr.dev/)** is installed inside dev images:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
 
-From a clone:
-```bash
-./install.sh
-```
-
-Ensure `~/.local/bin` is on your `PATH`, then:
-```bash
-cdev --help
-cdev list
-cdev run --image u2604dev --workspace "$PWD" --build
-```
-
-With host AI config and Git remotes (SSH read-only, OpenCode/Pi when present):
-```bash
-cdev run --image u2604dev --workspace "$PWD" \
-  --mount-ssh --mount-opencode --mount-pi \
-  --mount-codex --mount-claude --build
-```
-
-Or use a **preset** (same mounts as above; `full` also enables the Docker socket):
-```bash
-cdev run --preset ai --workspace "$PWD" --build
-cdev run --preset full -w "$PWD" --build
-```
-
-Presets compose with explicit flags: a preset turns on a baseline set of mounts; any `--mount-*` you pass on the command line **also** enables that mount. See `cdev run --help`.
-
-From a git clone (without install):
-```bash
-./cli/bin/cdev --help
-```
-
-Inside the container:
-```bash
-opencode --version
-pi --version
-```
-
-#### Node package managers (pnpm, Yarn)
-
-Images run **`corepack enable`** at build time (Node.js LTS). Inside the sandbox:
+2. If `cdev` is not found, add its default install directory to `PATH`:
 
 ```bash
-pnpm install          # after corepack prepare pnpm@latest --activate, or per project
-yarn install          # Yarn Berry via corepack when packageManager is set in package.json
+export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Global **npm** installs used for AI CLIs (`opencode`, `pi`, Claude Code, Codex) are unchanged; Corepack only manages project-local `pnpm`/`yarn` shims.
-
-#### Python environments (venv and uv)
-
-Distro **python3** and **pip** remain the default. **[uv](https://docs.astral.sh/uv/)** is installed to `/usr/local/bin` for faster venvs and installs:
+3. Pull the default image and start a new container for the current project:
 
 ```bash
-uv venv && source .venv/bin/activate
-uv pip install -r requirements.txt
+cdev run --pull --workspace "$PWD"
 ```
 
-Shell aliases `venv` / `activate` still wrap `python3 -m venv` for stdlib workflows.
-
-Mount paths inside the container: `/workspace`, and under `/root` (default) or `/home/dev` with `--nonroot`: `.ssh` (ro), `.config/opencode`, `.pi`, `.codex`, `.claude`.
-
-#### Authentication for AI CLIs in the sandbox
-
-Dev images ship Claude Code, Codex, OpenCode, and Pi, but **credentials are not baked in**. Use host config mounts and/or environment variables you pass at `docker run` / `cdev run` time. Never commit real keys; use placeholders in docs and scripts.
-
-| Tool | Typical auth | Host → container (default root user) | Notes |
-|------|----------------|--------------------------------------|-------|
-| **Claude Code** | Anthropic API key and/or logged-in CLI state | `$HOME/.claude` → `/root/.claude` (`--mount-claude`) | API: `-e ANTHROPIC_API_KEY=sk-ant-...` (placeholder). Mount carries sessions and settings from the host. |
-| **Codex** (OpenAI) | OpenAI / ChatGPT login or API key | `$HOME/.codex` → `/root/.codex` (`--mount-codex`) | API: `-e OPENAI_API_KEY=sk-...` (placeholder). Mount mirrors host Codex auth files. |
-| **OpenCode** | Provider keys in OpenCode config | `$HOME/.config/opencode` → `/root/.config/opencode` (`--mount-opencode`) | Configure providers on the host, then mount; or set provider env vars OpenCode reads (see [OpenCode docs](https://opencode.ai/)). |
-| **Pi** | Provider config under Pi agent dir | `$HOME/.pi` → `/root/.pi` (`--mount-pi`, optional if dir missing) | Same pattern: mount host `~/.pi` or inject keys via env per Pi provider docs. |
-| **Git / SSH remotes** | SSH keys and `known_hosts` | `$HOME/.ssh` → `/root/.ssh` read-only (`--mount-ssh`) | Not an AI key; needed for private repos inside the sandbox. |
-
-With **`cdev run --nonroot`**, replace `/root` with `/home/dev` in the container column above.
-
-**Examples (placeholders only):**
-```bash
-# API keys without mounting Claude/Codex dirs
-docker run --rm -it -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" \
-  -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
-
-# Recommended: reuse host login state
-cdev run --preset ai --workspace "$PWD" --build
-```
-
-Interactive `cdev run` prompts link here when you skip a mount. More detail: [cli/README.md](cli/README.md).
-
-#### Docker / Compose from inside the sandbox
-
-Images include the **Docker CLI** (not the daemon). To run `docker` or `docker compose` against your **host** engine, bind-mount the socket (opt-in):
+4. Inside the container, start an AI coding tool:
 
 ```bash
-cdev run --image u2604dev --workspace "$PWD" --mount-docker-socket --build
+pi
 ```
 
-Equivalent `docker run`:
+Exit the shell to remove the disposable container. Your project remains on the host and is mounted at `/workspace`.
+
+## How It Works
+
+```mermaid
+graph LR
+    A[Host project] -->|workspace mount| B[cdev]
+    B -->|pull or build| C[Ubuntu dev image]
+    D[Host AI config] -->|optional mount| B
+    C --> E[Disposable zsh container]
+    E --> F[Claude Code, Codex, OpenCode, Pi, herdr]
+```
+
+`cdev` selects an image, mounts the workspace, and starts `zsh`. AI credentials stay outside the image and can be mounted from the host.
+
+## Use Existing AI Login State
+
+Mount only the configuration needed by your tool:
+
+| Tool | Start container | Run inside |
+|---|---|---|
+| Claude Code | `cdev run --pull -w "$PWD" --mount-claude` | `claude` |
+| Codex | `cdev run --pull -w "$PWD" --mount-codex` | `codex` |
+| OpenCode | `cdev run --pull -w "$PWD" --mount-opencode` | `opencode` |
+| Pi | `cdev run --pull -w "$PWD" --mount-pi` | `pi` |
+| herdr | `cdev run --pull -w "$PWD"` | `herdr` |
+
+The `ai` preset mounts SSH, Claude, Codex, OpenCode, and Pi configuration together:
 
 ```bash
-docker run --rm -it -v "$PWD":/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/luongnv89/u2604dev:latest zsh
+cdev run --preset ai --pull --workspace "$PWD"
 ```
 
-**Security:** Anything in the container that can use `/var/run/docker.sock` can control the host Docker API (start privileged containers, mount host paths, etc.). Use `--mount-docker-socket` only on trusted projects and avoid sharing that container with untrusted code. See [Docker daemon attack surface](https://docs.docker.com/engine/security/#docker-daemon-attack-surface).
+Use the preset only when `~/.ssh`, `~/.claude`, `~/.codex`, and `~/.config/opencode` exist. A missing `~/.pi` directory is skipped.
 
-Legacy helper [u2604dev-opencode/run.sh](u2604dev-opencode/run.sh) now targets `u2604dev` (the separate opencode image variant is deprecated).
+## Common Commands
+
+| Goal | Command |
+|---|---|
+| Show available images | `cdev list` |
+| Inspect paths and configuration | `cdev config` |
+| Build locally, then start | `cdev run --build -w "$PWD"` |
+| Pull the published image, then start | `cdev run --pull -w "$PWD"` |
+| Choose Ubuntu 24.04 | `cdev run --pull --image u2404dev -w "$PWD"` |
+| Create a named container | `cdev run --pull --name my-dev -w "$PWD"` |
+| Re-enter a running named container | `docker exec -it my-dev zsh` |
+| Show every run option | `cdev run --help` |
+
+`--build` and `--pull` cannot be used together.
+
+## What Is Included
+
+| Capability | What you get |
+|---|---|
+| AI tools | Claude Code, Codex, OpenCode, Pi, extensions, and herdr |
+| Terminal | zsh, Oh My Zsh, Starship, Vim, fzf, fd, jq |
+| Runtimes | Node.js LTS, Corepack, Python, pip, and uv |
+| Git workflow | Git, GitHub CLI, and optional read-only SSH mounting |
+| Docker workflow | Docker CLI with an opt-in host socket mount |
+| Architectures | Published `linux/amd64` and `linux/arm64` images |
+
+## Images and Profiles
+
+### Images
+
+| Image | Base | Python |
+|---|---|---|
+| `u2604dev` | Ubuntu 26.04 | 3.13 |
+| `u2404dev` | Ubuntu 24.04 | 3.12 |
+| `u2204dev` | Ubuntu 22.04 | 3.12 |
+
+`u2604dev` is the default. The deprecated `u2604dev-opencode` name resolves to `u2604dev`.
+
+### Profiles
+
+| Profile | GHCR tag | AI tools |
+|---|---|---|
+| `ai-full` (default) | `latest` | Claude Code, Codex, OpenCode, Pi, extensions, herdr |
+| `standard` | `latest-standard` | OpenCode and Pi |
+| `minimal` | `latest-minimal` | No global AI tools |
+
+Select a profile when pulling or building:
+
+```bash
+cdev run --pull --profile standard --workspace "$PWD"
+```
+
+## Authentication and Mounts
+
+Credentials are not stored in the images.
+
+| Flag | Host path | Container path |
+|---|---|---|
+| `--mount-claude` | `~/.claude` | `/root/.claude` |
+| `--mount-codex` | `~/.codex` | `/root/.codex` |
+| `--mount-opencode` | `~/.config/opencode` | `/root/.config/opencode` |
+| `--mount-pi` | `~/.pi` | `/root/.pi` |
+| `--mount-ssh` | `~/.ssh` | `/root/.ssh` read-only |
+
+With `--nonroot`, these paths move under `/home/dev`. Use placeholders in documentation and never commit API keys.
+
+## Docker from Inside the Container
+
+The image contains the Docker client, not a daemon. Mounting the host socket lets the container control the host Docker daemon:
+
+```bash
+cdev run --pull --workspace "$PWD" --mount-docker-socket
+```
+
+Access to `/var/run/docker.sock` can start privileged containers and mount host paths. Enable it only for trusted projects. The `full` preset enables this mount in addition to all `ai` mounts.
 
 ## Documentation
 
 | Topic | File |
-|-------|------|
-| Architecture & CI layout | [docs/architecture.md](docs/architecture.md) |
+|---|---|
+| `cdev` reference | [cli/README.md](cli/README.md) |
+| Architecture and CI | [docs/architecture.md](docs/architecture.md) |
 | Development setup | [docs/development.md](docs/development.md) |
 | Troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
-| Doc change log | [docs/DECISIONS.md](docs/DECISIONS.md) |
-| `cdev` CLI | [cli/README.md](cli/README.md) |
-| Contributing guidelines | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Code of conduct | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
+| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Security policy | [SECURITY.md](SECURITY.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |
 
-> Validate install/runbook checks: `./scripts/validate-cdev-install.sh --check`, `./scripts/validate-dev-environment.sh --check` (`scripts/validate-cdev-install.sh`, `scripts/validate-dev-environment.sh`).
+<details>
+<summary>Plain Docker commands</summary>
 
-## Installation
+Authenticate to GHCR only if your Docker setup requires it:
 
-### Prerequisites
-
-- Docker Desktop or Docker Engine
-- (Optional) GitHub PAT for pulling from GHCR
-
-### Getting Images
-
-Images are published to GitHub Container Registry. See [Available Images](#available-images) for the full list.
-
-#### Authentication
-
-Using GitHub PAT (requires read:packages scope):
 ```bash
 echo "${GH_PAT}" | docker login ghcr.io -u <github-username> --password-stdin
 ```
 
-#### Pulling Images
+Pull the default profile:
 
-Pull latest tag:
 ```bash
 docker pull ghcr.io/luongnv89/u2604dev:latest
 ```
 
-Pull specific version by commit SHA:
-```bash
-docker pull ghcr.io/luongnv89/u2604dev:<git-sha>
-```
+Start a disposable shell with the current directory mounted:
 
-#### Running Containers
-
-Interactive shell:
-```bash
-docker run --rm -it ghcr.io/luongnv89/u2604dev:latest zsh
-```
-
-With current directory mounted:
 ```bash
 docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
 ```
 
-Or use [`cdev run`](#using-the-cdev-cli-recommended) for mounts and optional AI config.
+Pass an API key without storing it in the image:
 
-## Development
+```bash
+docker run --rm -it -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
+```
 
-### Setting Up
+Pull a commit-specific image by replacing `<git-sha>`:
 
-1. Fork the repository
-2. Clone your fork
-3. Create a feature branch
+```bash
+docker pull ghcr.io/luongnv89/u2604dev:<git-sha>
+```
 
-Clone the repository:
+</details>
+
+<details>
+<summary>Local builds and non-root containers</summary>
+
+Build from the repository root because Dockerfiles copy shared files from `common/`:
+
+```bash
+docker build -t my-dev-env -f u2604dev/Dockerfile .
+```
+
+Build the minimal profile:
+
+```bash
+docker build --build-arg DEV_IMAGE_PROFILE=minimal -t my-dev-env:minimal -f u2604dev/Dockerfile .
+```
+
+Run the locally built image:
+
+```bash
+docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
+```
+
+Containers run as root by default. Build and run as the host UID/GID to avoid root-owned workspace files:
+
+```bash
+cdev run --build --nonroot --workspace "$PWD"
+```
+
+Published GHCR images remain root-by-default; non-root support requires a local or custom build.
+
+</details>
+
+<details>
+<summary>Node and Python environments</summary>
+
+Corepack is enabled for project-managed pnpm and Yarn versions:
+
+```bash
+pnpm install
+```
+
+```bash
+yarn install
+```
+
+Create a Python environment with uv:
+
+```bash
+uv venv && source .venv/bin/activate
+```
+
+Install Python dependencies:
+
+```bash
+uv pip install -r requirements.txt
+```
+
+Distro `python3`, `pip`, and the `venv` and `activate` shell aliases remain available.
+
+</details>
+
+<details>
+<summary>Repository development and CI</summary>
+
+Fork the repository, clone your fork, and create a feature branch:
+
 ```bash
 git clone https://github.com/YOUR-USERNAME/docker-dev.git
 ```
 
-Navigate to the directory:
 ```bash
 cd docker-dev
 ```
 
-Create a feature branch:
 ```bash
 git checkout -b my-feature
 ```
 
-### Pre-commit Hooks
+Install the repository pre-commit hook:
 
-Install the pre-commit hook for automated quality checks:
 ```bash
 ln -sf ../../scripts/pre-commit.sh .git/hooks/pre-commit
 ```
 
-Or run ad-hoc:
+Run checks directly:
+
 ```bash
 ./scripts/pre-commit.sh
 ```
 
-This will:
-- Format shell scripts via shfmt
-- Lint shell scripts with ShellCheck
-- Lint Dockerfiles with Hadolint
-- Build the u2604dev image to verify Dockerfile validity
-- Clean up temporary files
+The checks format shell scripts with shfmt, run ShellCheck and Hadolint, build `u2604dev`, and remove temporary files. GitHub Actions builds changed images across three profiles, scans with Trivy, and publishes provenance attestations.
 
-### Adding a New Image
+To add an image, create `<image-name>/Dockerfile`, add `<image-name>/README.md`, update the image table, and follow [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-image).
 
-See [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-image) for detailed instructions.
+Validate installation and environment runbooks:
 
-### CI/CD
+```bash
+./scripts/validate-cdev-install.sh --check
+```
 
-The repository uses GitHub Actions for automated builds:
+```bash
+./scripts/validate-dev-environment.sh --check
+```
 
-- **Matrix workflow**: Builds **u2204dev**, **u2404dev**, and **u2604dev** (three profiles each) with multi-platform support (`.github/workflows/build-images.yml:57-89`)
-- **Path-based detection**: Only builds images that changed
-- **Security scanning**: Trivy scans for vulnerabilities
-- **Artifact attestation**: Provenance for published images
+</details>
 
-Workflow file: [`.github/workflows/build-images.yml`](.github/workflows/build-images.yml)
+<details>
+<summary>Project links and attribution</summary>
 
-## Contributing
+- [Issues](https://github.com/luongnv89/docker-dev/issues) — bug reports and feature requests
+- [Discussions](https://github.com/luongnv89/docker-dev/discussions) — questions
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- Contact: luongnv89@gmail.com
+- Shell and editor components: [Oh My Zsh](https://ohmyz.sh/), [Starship](https://starship.rs/), and [Vim](https://www.vim.org/)
+- Container runtime: [Docker](https://www.docker.com/)
 
-We welcome contributions! Please read our [Contributing Guide](CONTRIBUTING.md) for:
+</details>
 
-- Setting up your development environment
-- Development workflow
-- Pull request process
-- Code style guidelines
-- Testing requirements
+<details>
+<summary>Previous README</summary>
 
-By participating, you are expected to uphold our [Code of Conduct](CODE_OF_CONDUCT.md).
+The complete pre-rewrite README is preserved in [README.backup.md](README.backup.md).
 
-## Security
+</details>
 
-For security vulnerabilities, please read our [Security Policy](SECURITY.md) for responsible reporting guidelines.
+## Start a Container
 
-## License
+```bash
+cdev run --pull --workspace "$PWD"
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [Oh My Zsh](https://ohmyz.sh/) for the excellent shell framework
-- [Starship](https://starship.rs/) for the cross-shell prompt
-- [Vim](https://www.vim.org/) community for editor plugins
-- [Docker](https://www.docker.com/) for container technology
-
-## Support
-
-- [Issues](../../issues) for bug reports and feature requests
-- [Discussions](../../discussions) for questions and general discussion
-- Email: luongnv89@gmail.com
+[**CLI reference →**](cli/README.md) · [**Troubleshooting →**](docs/troubleshooting.md) · [MIT licensed](LICENSE)
