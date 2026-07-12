@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`AI_VERIFY_MODE`** (`lenient` / `strict`) for `common/install-ai-tools.sh`; CI builds use `strict`
+- **`scripts/verify-ai-globals-audit.sh`** and CI job **npm audit (pinned AI globals)** for supply-chain checks on pinned AI npm packages
+- **Dockerfile layer split**: AI npm install in a separate `RUN` after apt/base (`install-ai-tools.sh` no longer invoked from `dev-image-base.sh`)
 - **Corepack** enabled in dev images for pnpm/Yarn; documented in README and shell welcome
 - **`common/install-uv.sh`** — Astral uv for fast Python venvs alongside distro `python3 -m venv`
 - **`cdev run --preset`** — `ai` and `full` workflow presets; documented in `cdev run --help`, root README, and `cli/README.md`

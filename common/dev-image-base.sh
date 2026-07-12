@@ -200,5 +200,3 @@ fi
 echo ""
 
 EOF
-
-DEV_IMAGE_PROFILE="${DEV_IMAGE_PROFILE:-ai-full}" bash "${SCRIPT_DIR}/install-ai-tools.sh"

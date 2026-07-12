@@ -4,6 +4,17 @@
 set -euo pipefail
 
 PROFILE="${DEV_IMAGE_PROFILE:-ai-full}"
+# lenient: warn on optional PATH shims (default, local-friendly)
+# strict: fail image build if required CLIs are not on PATH after install (CI/release)
+AI_VERIFY_MODE="${AI_VERIFY_MODE:-lenient}"
+case "$AI_VERIFY_MODE" in
+  lenient|strict) ;;
+  *)
+    echo "[AI] Invalid AI_VERIFY_MODE: ${AI_VERIFY_MODE} (expected lenient or strict)" >&2
+    exit 1
+    ;;
+esac
+
 case "$PROFILE" in
   minimal|standard|ai-full) ;;
   *)
@@ -12,7 +23,7 @@ case "$PROFILE" in
     ;;
 esac
 
-echo "[AI] Build profile: ${PROFILE}"
+echo "[AI] Build profile: ${PROFILE} (verify: ${AI_VERIFY_MODE})"
 
 # Pinned versions — bump process: CONTRIBUTING.md § "Bumping AI CLI versions"
 CLAUDE_CODE_VERSION="2.1.207"
@@ -95,12 +106,16 @@ for cmd in git vim zsh starship node npm python3 opencode pi; do
   fi
 done
 
-# Claude/Codex may be installed as node shims; check npm globals if not on PATH
-if ! command -v claude >/dev/null 2>&1; then
-  echo "[AI] Note: claude CLI not on PATH (mount ~/.claude at runtime or use npx)"
-fi
-if ! command -v codex >/dev/null 2>&1; then
-  echo "[AI] Note: codex CLI not on PATH (mount ~/.codex at runtime or use npx)"
-fi
+# Claude/Codex are required for ai-full; lenient mode only warns if npm shims are missing
+for optional_cmd in claude codex; do
+  if ! command -v "$optional_cmd" >/dev/null 2>&1; then
+    msg="[AI] ${optional_cmd} CLI not on PATH after global npm install"
+    if [ "$AI_VERIFY_MODE" = "strict" ]; then
+      echo "${msg} (strict verify — failing build)" >&2
+      exit 1
+    fi
+    echo "[AI] Note: ${optional_cmd} CLI not on PATH (lenient — mount ~/.${optional_cmd} at runtime or use npx)"
+  fi
+done
 
 echo "[AI] Tooling install complete (ai-full)."
