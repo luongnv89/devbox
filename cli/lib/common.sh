@@ -71,6 +71,10 @@ docker_dev_dir_has_content() {
   [ -d "$path" ] && [ -n "$(ls -A "$path" 2>/dev/null)" ]
 }
 
+docker_dev_sandbox_auth_doc_ref() {
+  echo "  Docs: Authentication — AI CLIs in the sandbox (repo README.md or cli/README.md)"
+}
+
 prompt_yes_no() {
   local prompt="$1"
   local default="${2:-y}"
@@ -84,4 +88,15 @@ prompt_yes_no() {
     y|Y|yes|YES) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+# Interactive mount prompt: on decline, point users at sandbox auth documentation.
+prompt_mount_yes_no() {
+  local prompt="$1"
+  local default="${2:-y}"
+  if prompt_yes_no "$prompt" "$default"; then
+    return 0
+  fi
+  docker_dev_sandbox_auth_doc_ref
+  return 1
 }

@@ -29,6 +29,31 @@ assert_contains "$RUN_HELP" "--mount-opencode"
 assert_contains "$RUN_HELP" "--mount-pi"
 assert_contains "$RUN_HELP" "--mount-docker-socket"
 assert_contains "$RUN_HELP" "read-only"
+assert_contains "$RUN_HELP" "--preset"
+assert_contains "$RUN_HELP" "ai"
+assert_contains "$RUN_HELP" "full"
+assert_contains "$RUN_HELP" "Precedence"
+
+PRESET_AI="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
+  mount_codex=0 mount_claude=0 mount_ssh=0 mount_opencode=0 mount_pi=0 mount_docker_socket=0
+  source "${CDEV_REPO}/cli/lib/common.sh"
+  source "${CDEV_REPO}/cli/lib/presets.sh"
+  docker_dev_apply_run_preset ai
+  echo "${mount_ssh}:${mount_claude}:${mount_codex}:${mount_opencode}:${mount_pi}:${mount_docker_socket}"
+')"
+[ "$PRESET_AI" = "1:1:1:1:1:0" ] || { echo "ai preset mismatch: ${PRESET_AI}" >&2; exit 1; }
+
+PRESET_FULL="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
+  mount_codex=0 mount_claude=0 mount_ssh=0 mount_opencode=0 mount_pi=0 mount_docker_socket=0
+  source "${CDEV_REPO}/cli/lib/common.sh"
+  source "${CDEV_REPO}/cli/lib/presets.sh"
+  docker_dev_apply_run_preset full
+  echo "${mount_docker_socket}"
+')"
+[ "$PRESET_FULL" = "1" ] || { echo "full preset socket: ${PRESET_FULL}" >&2; exit 1; }
+
+AUTH_REF="$(CDEV_REPO="${ROOT_DIR}" bash -c 'source "${CDEV_REPO}/cli/lib/common.sh"; docker_dev_sandbox_auth_doc_ref')"
+assert_contains "$AUTH_REF" "Authentication"
 assert_contains "$("${CLI}" list)" "u2604dev"
 LIST_JSON="$("${CLI}" list --format json)"
 assert_contains "$LIST_JSON" "u2604dev"

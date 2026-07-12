@@ -20,7 +20,7 @@ From a repository checkout:
 
 | Command | Description |
 |---------|-------------|
-| `cdev run` | Build/pull and start interactive zsh session (optional `--mount-docker-socket`) |
+| `cdev run` | Build/pull and start interactive zsh session (`--preset`, optional `--mount-docker-socket`) |
 | `cdev build` | Build image locally |
 | `cdev list` | Show image names (`--format json`) |
 | `cdev config` | Show repo root and mount paths |
@@ -30,6 +30,37 @@ From a repository checkout:
 - `--version`, `-h` / `--help`
 - `-v` / `--verbose`, `-q` / `--quiet`, `--no-color`
 - `--repo PATH` or `CDEV_REPO`
+
+## Run presets
+
+`cdev run --preset NAME` applies a common mount bundle before starting the container. List presets in `cdev run --help`.
+
+| Preset | Mounts enabled |
+|--------|----------------|
+| `ai` | SSH, Claude (`.claude`), Codex (`.codex`), OpenCode, Pi (when host dir exists) |
+| `full` | Same as `ai` plus host Docker socket |
+
+**Precedence:** the preset sets defaults; explicit `--mount-*` flags on the CLI **add** mounts (they do not cancel a preset). Workspace is always set with `-w` / `--workspace` (default: current directory). Combine preset + extra flags, e.g. `cdev run --preset ai --mount-docker-socket`.
+
+```bash
+cdev run --preset ai -w "$PWD" --build
+```
+
+## Authentication (AI CLIs in the sandbox)
+
+Images include the CLIs; you supply credentials via **bind mounts** and/or **environment variables**. Do not commit secrets.
+
+| Mount flag | Host path | Container path (root) |
+|------------|-----------|------------------------|
+| `--mount-claude` | `~/.claude` | `/root/.claude` |
+| `--mount-codex` | `~/.codex` | `/root/.codex` |
+| `--mount-opencode` | `~/.config/opencode` | `/root/.config/opencode` |
+| `--mount-pi` | `~/.pi` (optional) | `/root/.pi` |
+| `--mount-ssh` | `~/.ssh` (ro) | `/root/.ssh` |
+
+Common env vars (examples use placeholders): `ANTHROPIC_API_KEY` (Claude), `OPENAI_API_KEY` (Codex/OpenAI). Pass with `docker run -e` or your orchestrator. With `--nonroot`, container paths are under `/home/dev`.
+
+Full table and examples: [../README.md#authentication-for-ai-clis-in-the-sandbox](../README.md#authentication-for-ai-clis-in-the-sandbox).
 
 ## Host Docker socket (optional)
 
