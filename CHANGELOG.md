@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CONTRIBUTING.md:** document tracked high npm advisories on pinned `pi-coding-agent` and CI recovery for transient Docker Hub auth 502s
 - Ubuntu dev Dockerfiles (`u2204dev`, `u2404dev`, `u2604dev`): shared build logic in `common/dev-image-base.sh` and `common/install-python.sh`; per-image Dockerfiles only set base tag and copy image-specific shell/editor config
 
 - **Deprecated `u2604dev-opencode` as a first-class image.** OpenCode and other AI tooling already ship in `u2604dev` (and other base images). `cdev list` shows three images only; `cdev run` / `cdev build` accept `--image u2604dev-opencode` as an alias to `u2604dev` with a migration hint. CI matrix unchanged (never built opencode). Migration: `cdev run --image u2604dev --mount-opencode --mount-pi`.
