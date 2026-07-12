@@ -7,14 +7,22 @@ This image bundles a productive CLI environment for day-to-day development on Ub
 
 ## Quick Start
 
+**Recommended:** use the [`cdev` CLI](../../cli/README.md) from the repo root or after [install](../../README.md#using-the-cdev-cli-recommended):
+
 ```bash
-# Pull from GitHub Container Registry
+cdev run --image u2404dev --workspace "$PWD"
+
+# With host Git + AI config when present
+cdev run --image u2404dev --workspace "$PWD" \
+  --mount-ssh --mount-opencode --mount-pi \
+  --mount-codex --mount-claude
+```
+
+Plain `docker` (no optional mounts):
+
+```bash
 docker pull ghcr.io/luongnv89/u2404dev:latest
-
-# Run interactively
 docker run --rm -it ghcr.io/luongnv89/u2404dev:latest zsh
-
-# With current directory mounted
 docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 ```
 
@@ -47,6 +55,10 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 | fzf | apt |
 | fd | apt (`fd-find` → `fd`) |
 | gh | GitHub CLI (apt) |
+
+### AI / coding agents (baked in)
+
+Same stack as other `*dev` images — see [`common/install-ai-tools.sh`](../../common/install-ai-tools.sh) and [u2604dev](../u2604dev/README.md#ai--coding-agents-baked-in) for the full list (OpenCode, Pi, Claude Code, Codex, pi-extensions, herdr). Use `cdev run` mount flags for host config.
 
 ### Other Features
 
