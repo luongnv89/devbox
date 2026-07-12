@@ -43,6 +43,10 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 | ripgrep | Latest |
 | bat | Latest |
 | btop | Latest |
+| jq | apt |
+| fzf | apt |
+| fd | apt (`fd-find` → `fd`) |
+| gh | GitHub CLI (apt) |
 
 ### Other Features
 
@@ -52,15 +56,15 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 
 ## Installed Packages
 
-- **CLI Tools**: git, git-lfs, openssh-client, vim, wget, curl, zsh, unzip, fontconfig
+- **CLI Tools**: git, git-lfs, openssh-client, vim, wget, curl, zsh, unzip, fontconfig, jq, fzf, fd-find (symlinked as `fd`), gh
 - **Build Tools**: build-essential, ninja-build, cmake, gettext
-- **Utilities**: btop, ripgrep, bat, ca-certificates, gnupg, lsb-release
+- **Utilities**: btop, ripgrep, bat, tzdata, ca-certificates, gnupg, lsb-release
 
 ## Build
 
 ```bash
 # Build locally
-docker build -t my-u2404dev -f u2404dev/Dockerfile u2404dev
+docker build -t my-u2404dev -f u2404dev/Dockerfile .
 
 # Run locally built image
 docker run --rm -it -v "$PWD":/workspace my-u2404dev zsh
@@ -80,6 +84,10 @@ alias ...='cd ../..'
 alias grep='grep --color=auto'
 alias cat='bat --paging=never'
 alias top='btop'
+alias ff='fzf'
+alias jj='jq'
+
+# fzf uses fd for file search; Ctrl-T / Alt-C key bindings enabled in zsh
 
 # Git
 alias gs='git status'
@@ -100,6 +108,7 @@ alias activate='source venv/bin/activate'
 |----------|-------|
 | LANG | en_US.UTF-8 |
 | LC_ALL | en_US.UTF-8 |
+| TZ | `Etc/UTC` (override at runtime, e.g. `docker run -e TZ=America/New_York …`) |
 | SHELL | zsh |
 
 ## Image Details

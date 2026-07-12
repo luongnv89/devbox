@@ -15,7 +15,7 @@ Curated Docker images for different development environments. Each image lives i
 - **Security Scanned**: Images are scanned with Trivy for vulnerabilities
 - **Pre-commit Hooks**: Automated formatting, linting, and testing on every commit
 - **Production Ready**: Artifact attestation for image provenance
-- **Coding-ready images**: git, vim, zsh, Starship, OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
+- **Coding-ready images**: git, vim, zsh, Starship, jq, fzf, fd, gh, tzdata (`TZ=Etc/UTC`, overridable), OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
 - **`cdev` CLI**: Interactive launcher with optional workspace, SSH, OpenCode, Pi, `~/.codex`, and `~/.claude` mounts
 
 ## Available Images

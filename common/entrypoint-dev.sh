@@ -2,6 +2,11 @@
 # Optional volume hygiene for dev containers.
 set -euo pipefail
 
+# Default TZ is Etc/UTC (set in Dockerfile). Honor runtime override.
+if [ -n "${TZ:-}" ] && [ -f /usr/share/zoneinfo/"${TZ}" ]; then
+  ln -snf /usr/share/zoneinfo/"${TZ}" /etc/localtime 2>/dev/null || true
+fi
+
 if [ -d /root/.ssh ] && [ "$(ls -A /root/.ssh 2>/dev/null)" ]; then
   chmod 700 /root/.ssh 2>/dev/null || true
   chmod 600 /root/.ssh/id_* 2>/dev/null || true
