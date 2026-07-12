@@ -182,6 +182,29 @@ Closes #123
 - Include code blocks with language tags
 - Keep line width to 80 characters
 
+## Image build verify modes (`AI_VERIFY_MODE`)
+
+`common/install-ai-tools.sh` runs in a **dedicated Docker layer** (after apt/base setup) so bumps to AI tooling do not invalidate cached base layers.
+
+| Mode | When to use | Behavior |
+|------|-------------|----------|
+| `lenient` (default) | Local `docker build` | Hard-fail on missing core tools (`git`, `node`, `opencode`, `pi`, …). For **ai-full**, missing `claude` / `codex` on `PATH` after `npm install -g` logs a note only (runtime mounts may supply them). |
+| `strict` | CI (`build-images.yml`) and release checks | Same as lenient, plus **ai-full** builds **fail** if `claude` or `codex` is not on `PATH` after global install. |
+
+```bash
+# Local strict check (matches CI):
+docker build --build-arg AI_VERIFY_MODE=strict -f u2604dev/Dockerfile .
+```
+
+`standard` / `minimal` profiles always verify the tools they install; strict vs lenient only changes optional shim handling on **ai-full**.
+
+## Global npm supply-chain checks
+
+- **CI:** `scripts/verify-ai-globals-audit.sh` runs on every workflow (parses pinned versions from `install-ai-tools.sh`, prints the full `npm audit` report, and **fails on critical** severity). **High** findings are logged for maintainers to address via version bumps; they do not block the workflow while upstream fixes are pending. This covers **transitive npm vulnerabilities** in the pinned AI CLIs; it does not replace Trivy.
+- **Tracked high advisories (non-blocking):** as of pin `@mariozechner/pi-coding-agent@0.73.1`, `npm audit` may report high issues (e.g. GHSA-7v5m-pr3q-6453, GHSA-jfgx-wxx8-mp94, GHSA-r95r-rj6r-c39x). There is no newer fixed release on npm yet; bump `PI_CODING_AGENT_VERSION` when upstream ships a patched version.
+- **Transient registry errors in CI:** occasional `auth.docker.io` 502 responses during `docker/build-push-action` are infrastructure flakes. Re-run failed matrix jobs (`gh run rerun <run-id> --failed`) rather than changing image code.
+- **Images:** Published **ai-full** images on `main` are still scanned with **Trivy** (OS and installed packages in the image). Use both gates: audit at build time, Trivy after push.
+
 ## Bumping AI CLI versions
 
 Dev images install global AI CLIs from `common/install-ai-tools.sh` with **explicit npm versions** so CI and sandbox builds stay reproducible. The script reads `DEV_IMAGE_PROFILE` (`minimal` skips AI npm; `standard` installs OpenCode/Pi only; `ai-full` is the default).

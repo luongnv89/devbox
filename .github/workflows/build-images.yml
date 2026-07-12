@@ -8,7 +8,7 @@ on:
       - "common/**"
       - "cli/**"
       - "install.sh"
-      - "scripts/docker-dev"
+      - "scripts/**"
       - ".github/workflows/build-images.yml"
       - "README.md"
   pull_request:
@@ -18,7 +18,7 @@ on:
       - "common/**"
       - "cli/**"
       - "install.sh"
-      - "scripts/docker-dev"
+      - "scripts/**"
       - ".github/workflows/build-images.yml"
       - "README.md"
   workflow_dispatch:
@@ -28,6 +28,21 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}
 
 jobs:
+  npm-audit-ai-globals:
+    name: npm audit (pinned AI globals)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Audit pinned global AI npm packages
+        run: bash scripts/verify-ai-globals-audit.sh
+
   detect-changes:
     name: Detect Changed Images
     runs-on: ubuntu-latest
@@ -61,7 +76,9 @@ jobs:
 
   build:
     name: Build ${{ matrix.image }} (${{ matrix.profile }})
-    needs: detect-changes
+    needs:
+      - detect-changes
+      - npm-audit-ai-globals
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -126,6 +143,7 @@ jobs:
           file: ${{ matrix.dockerfile }}
           build-args: |
             DEV_IMAGE_PROFILE=${{ matrix.profile }}
+            AI_VERIFY_MODE=strict
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
