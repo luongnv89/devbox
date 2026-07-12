@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Deprecated `u2604dev-opencode` as a first-class image.** OpenCode and other AI tooling already ship in `u2604dev` (and other base images). `cdev list` shows three images only; `cdev run` / `cdev build` accept `--image u2604dev-opencode` as an alias to `u2604dev` with a migration hint. CI matrix unchanged (never built opencode). Migration: `cdev run --image u2604dev --mount-opencode --mount-pi`.
 - `common/install-ai-tools.sh`: pin global npm AI CLI versions; see CONTRIBUTING for bump process
 - `u2204dev`, `u2404dev`, `u2604dev` Dockerfiles: repo-root build context, AI tooling baked in, shared entrypoint; Oh My Zsh `docker` plugin re-enabled with installed CLI
 - CI and pre-commit test builds use repository root as Docker build context
