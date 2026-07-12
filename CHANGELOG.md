@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Build profiles** for dev images (`minimal`, `standard`, `ai-full`): `DEV_IMAGE_PROFILE` build arg, branched `common/install-ai-tools.sh`, GHCR tags `latest` / `latest-standard` / `latest-minimal`, `cdev build|run --profile`
+- `cli/lib/profiles.sh` — profile validation and image tag mapping
 - `common/install-docker-cli.sh` — Docker CLI (client) in dev images; optional `docker-compose-v2` when available on the base
 - `cdev run --mount-docker-socket` — bind host `/var/run/docker.sock` for in-container compose workflows
 - Base dev images (`u2204dev`, `u2404dev`, `u2604dev`): jq, tzdata, fzf, fd-find (`fd` symlink), GitHub CLI (`gh`), shared `shell-cli-extras.zsh` (fzf key bindings)

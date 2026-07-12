@@ -186,4 +186,4 @@ echo ""
 
 EOF
 
-bash "${SCRIPT_DIR}/install-ai-tools.sh"
+DEV_IMAGE_PROFILE="${DEV_IMAGE_PROFILE:-ai-full}" bash "${SCRIPT_DIR}/install-ai-tools.sh"

@@ -184,7 +184,7 @@ Closes #123
 
 ## Bumping AI CLI versions
 
-Dev images install global AI CLIs from `common/install-ai-tools.sh` with **explicit npm versions** so CI and sandbox builds stay reproducible.
+Dev images install global AI CLIs from `common/install-ai-tools.sh` with **explicit npm versions** so CI and sandbox builds stay reproducible. The script reads `DEV_IMAGE_PROFILE` (`minimal` skips AI npm; `standard` installs OpenCode/Pi only; `ai-full` is the default).
 
 When upgrading a CLI:
 
