@@ -4,6 +4,8 @@
 
 ## Install
 
+> Validate: `./scripts/validate-cdev-install.sh --check` (from repo root).
+
 Installs **cdev** on the host. **[herdr](https://herdr.dev/)** is baked into container images (`common/install-ai-tools.sh`).
 
 ```bash
@@ -77,4 +79,5 @@ export CDEV_REPO="$PWD"
 ./cli/bin/cdev list
 ./scripts/tasks/test-docker-dev-cli.sh
 ./scripts/validate-ohmyzsh-plugins.sh
+./scripts/validate-cdev-install.sh --check
 ```

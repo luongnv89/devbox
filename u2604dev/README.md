@@ -32,8 +32,8 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
 
 - **Oh My Zsh** with custom configuration
 - **Starship** prompt for a fast, cross-shell experience
-- Oh My Zsh plugins (built-in + custom): `git`, `npm`, `pip`, `python`, plus custom plugins zsh-syntax-highlighting, zsh-autosuggestions, zsh-completions
-- **Docker CLI and kubectl are not installed** in the image (sandbox-friendly); Starship may still show container context when running inside Docker.
+- Oh My Zsh plugins (built-in + custom): `git`, `docker`, `npm`, `pip`, `python`, plus custom plugins zsh-syntax-highlighting, zsh-autosuggestions, zsh-completions
+- **Docker CLI** (client only, no in-image daemon) via `common/install-docker-cli.sh` (`common/dev-image-base.sh:57-58`). **kubectl** is not installed; themes show k8s context only if `kubectl` exists on PATH (`u2604dev/wedisagree.zsh-theme:129-130`).
 
 ### Editor
 
@@ -146,12 +146,15 @@ alias activate='source venv/bin/activate'
 
 ## Published Tags
 
-| Tag | Description |
-|-----|-------------|
-| `latest` | Latest stable release |
-| `sha-{git-sha}` | Specific commit SHA |
-| `{major}.{minor}` | Minor version (e.g., 1.0) |
-| `{major}` | Major version (e.g., 1) |
+GHCR tags per profile (`.github/workflows/build-images.yml:130-136`, `cli/lib/profiles.sh:17-24`):
+
+| Tag | Profile |
+|-----|---------|
+| `latest` | `ai-full` (default) |
+| `latest-standard` | `standard` |
+| `latest-minimal` | `minimal` |
+| `sha-{git-sha}` | `ai-full` commits on `main` |
+| Semver tags | `ai-full` when released |
 
 ## CI/CD
 
@@ -167,7 +170,7 @@ To modify this image:
 
 1. Edit `u2604dev/Dockerfile`
 2. Update this README if adding/removing features
-3. Test with: `docker build -t test-u2604dev -f u2604dev/Dockerfile u2604dev`
+3. Test with: `docker build -t test-u2604dev -f u2604dev/Dockerfile .` (repo root context; `scripts/tasks/test.sh:15-16`)
 4. Submit a PR
 
 See [CONTRIBUTING.md](../../CONTRIBUTING.md) for full guidelines.

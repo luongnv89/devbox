@@ -4,18 +4,27 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 fail=0
 expected='plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)'
+base="$root/common/dev-image-base.sh"
+if grep -q 'plugins=.*kubectl' "$base"; then
+  echo "FAIL: dev-image-base.sh lists kubectl in plugins= without kubectl CLI"
+  fail=1
+fi
+if ! grep -qF "$expected" "$base"; then
+  echo "FAIL: dev-image-base.sh missing expected plugins= sed line (common/dev-image-base.sh:115-116)"
+  fail=1
+fi
+if ! grep -q 'install-docker-cli.sh' "$base"; then
+  echo "FAIL: dev-image-base.sh does not invoke install-docker-cli.sh"
+  fail=1
+fi
 for df in u2204dev/Dockerfile u2404dev/Dockerfile u2604dev/Dockerfile; do
   path="$root/$df"
   if grep -q 'plugins=.*kubectl' "$path"; then
     echo "FAIL: $df lists kubectl in plugins= without kubectl CLI"
     fail=1
   fi
-  if ! grep -qF "$expected" "$path"; then
-    echo "FAIL: $df missing expected plugins= line"
-    fail=1
-  fi
-  if ! grep -q 'install-docker-cli.sh' "$path"; then
-    echo "FAIL: $df does not install Docker CLI (issue #9)"
+  if ! grep -q 'dev-image-base.sh' "$path"; then
+    echo "FAIL: $df does not run common/dev-image-base.sh"
     fail=1
   fi
 done

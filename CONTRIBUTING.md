@@ -252,6 +252,10 @@ Before submitting:
 
 - Root `README.md`: Overview, quick start, available images
 - Per-image `README.md`: Detailed documentation for each image
+- `docs/architecture.md`, `docs/development.md`: Cross-cutting layout and contributor setup
+- `docs/DECISIONS.md`: Resolved doc ambiguities (append-only)
+
+Validate contributor docs: `./scripts/validate-dev-environment.sh --check` (`docs/development.md`).
 
 ### Updating Documentation
 
