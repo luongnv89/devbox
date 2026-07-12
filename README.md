@@ -15,7 +15,7 @@ Curated Docker images for different development environments. Each image lives i
 - **Security Scanned**: Images are scanned with Trivy for vulnerabilities
 - **Pre-commit Hooks**: Automated formatting, linting, and testing on every commit
 - **Production Ready**: Artifact attestation for image provenance
-- **Coding-ready images**: git, vim, zsh, Starship, jq, fzf, fd, gh, **Docker CLI** (client only), tzdata (`TZ=Etc/UTC`, overridable), OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
+- **Coding-ready images**: git, vim, zsh, Starship, jq, fzf, fd, gh, **Docker CLI** (client only), tzdata (`TZ=Etc/UTC`, overridable), Node.js LTS with **Corepack** (pnpm/yarn), **uv** for Python envs, OpenCode, Pi (+ `luongnv89/pi-extensions`), Claude Code & Codex npm CLIs
 - **`cdev` CLI**: Interactive launcher with optional workspace, SSH, OpenCode, Pi, `~/.codex`, and `~/.claude` mounts
 
 ## Available Images
@@ -131,6 +131,28 @@ Inside the container:
 opencode --version
 pi --version
 ```
+
+#### Node package managers (pnpm, Yarn)
+
+Images run **`corepack enable`** at build time (Node.js LTS). Inside the sandbox:
+
+```bash
+pnpm install          # after corepack prepare pnpm@latest --activate, or per project
+yarn install          # Yarn Berry via corepack when packageManager is set in package.json
+```
+
+Global **npm** installs used for AI CLIs (`opencode`, `pi`, Claude Code, Codex) are unchanged; Corepack only manages project-local `pnpm`/`yarn` shims.
+
+#### Python environments (venv and uv)
+
+Distro **python3** and **pip** remain the default. **[uv](https://docs.astral.sh/uv/)** is installed to `/usr/local/bin` for faster venvs and installs:
+
+```bash
+uv venv && source .venv/bin/activate
+uv pip install -r requirements.txt
+```
+
+Shell aliases `venv` / `activate` still wrap `python3 -m venv` for stdlib workflows.
 
 Mount paths inside the container: `/workspace`, and under `/root` (default) or `/home/dev` with `--nonroot`: `.ssh` (ro), `.config/opencode`, `.pi`, `.codex`, `.claude`.
 
