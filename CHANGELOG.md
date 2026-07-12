@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`cdev run --preset`** — `ai` and `full` workflow presets; documented in `cdev run --help`, root README, and `cli/README.md`
+- **Sandbox authentication docs** — README and `cli/README.md` sections for AI CLI credentials, mount paths, and env vars (placeholders only)
+- `cli/lib/presets.sh` — preset definitions; interactive mount prompts reference auth docs when declined
 - **Optional non-root `dev` user** for bind-mount sandboxes: `DEV_CREATE_NONROOT_USER`, `DEV_UID`, `DEV_GID` build args; `common/setup-dev-user.sh`; `cdev build|run --nonroot`; default `WORKDIR /workspace`
 - **Build profiles** for dev images (`minimal`, `standard`, `ai-full`): `DEV_IMAGE_PROFILE` build arg, branched `common/install-ai-tools.sh`, GHCR tags `latest` / `latest-standard` / `latest-minimal`, `cdev build|run --profile`
 - `cli/lib/profiles.sh` — profile validation and image tag mapping

@@ -113,6 +113,14 @@ cdev run --image u2604dev --workspace "$PWD" \
   --mount-codex --mount-claude --build
 ```
 
+Or use a **preset** (same mounts as above; `full` also enables the Docker socket):
+```bash
+cdev run --preset ai --workspace "$PWD" --build
+cdev run --preset full -w "$PWD" --build
+```
+
+Presets compose with explicit flags: a preset turns on a baseline set of mounts; any `--mount-*` you pass on the command line **also** enables that mount. See `cdev run --help`.
+
 From a git clone (without install):
 ```bash
 ./cli/bin/cdev --help
@@ -125,6 +133,32 @@ pi --version
 ```
 
 Mount paths inside the container: `/workspace`, and under `/root` (default) or `/home/dev` with `--nonroot`: `.ssh` (ro), `.config/opencode`, `.pi`, `.codex`, `.claude`.
+
+#### Authentication for AI CLIs in the sandbox
+
+Dev images ship Claude Code, Codex, OpenCode, and Pi, but **credentials are not baked in**. Use host config mounts and/or environment variables you pass at `docker run` / `cdev run` time. Never commit real keys; use placeholders in docs and scripts.
+
+| Tool | Typical auth | Host → container (default root user) | Notes |
+|------|----------------|--------------------------------------|-------|
+| **Claude Code** | Anthropic API key and/or logged-in CLI state | `$HOME/.claude` → `/root/.claude` (`--mount-claude`) | API: `-e ANTHROPIC_API_KEY=sk-ant-...` (placeholder). Mount carries sessions and settings from the host. |
+| **Codex** (OpenAI) | OpenAI / ChatGPT login or API key | `$HOME/.codex` → `/root/.codex` (`--mount-codex`) | API: `-e OPENAI_API_KEY=sk-...` (placeholder). Mount mirrors host Codex auth files. |
+| **OpenCode** | Provider keys in OpenCode config | `$HOME/.config/opencode` → `/root/.config/opencode` (`--mount-opencode`) | Configure providers on the host, then mount; or set provider env vars OpenCode reads (see [OpenCode docs](https://opencode.ai/)). |
+| **Pi** | Provider config under Pi agent dir | `$HOME/.pi` → `/root/.pi` (`--mount-pi`, optional if dir missing) | Same pattern: mount host `~/.pi` or inject keys via env per Pi provider docs. |
+| **Git / SSH remotes** | SSH keys and `known_hosts` | `$HOME/.ssh` → `/root/.ssh` read-only (`--mount-ssh`) | Not an AI key; needed for private repos inside the sandbox. |
+
+With **`cdev run --nonroot`**, replace `/root` with `/home/dev` in the container column above.
+
+**Examples (placeholders only):**
+```bash
+# API keys without mounting Claude/Codex dirs
+docker run --rm -it -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" \
+  -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
+
+# Recommended: reuse host login state
+cdev run --preset ai --workspace "$PWD" --build
+```
+
+Interactive `cdev run` prompts link here when you skip a mount. More detail: [cli/README.md](cli/README.md).
 
 #### Docker / Compose from inside the sandbox
 

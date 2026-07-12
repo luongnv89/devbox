@@ -52,7 +52,9 @@ Install (cdev + herdr):
 
 Examples:
   cdev run --image u2604dev --workspace "\$PWD" --build
+  cdev run --preset ai -w ~/projects/app --build
   cdev run --mount-ssh --mount-opencode --mount-pi --mount-codex --mount-claude -w ~/projects/app
+  cdev run --help    (lists --preset ai|full and mount flags)
   cdev build --image u2404dev
   cdev list --format json
 EOF

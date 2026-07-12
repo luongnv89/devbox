@@ -14,6 +14,7 @@ docker_dev_cmd_run() {
   local mount_opencode=0
   local mount_pi=0
   local mount_docker_socket=0
+  local preset=""
   local do_build=0
   local do_pull=0
   local nonroot=0
@@ -23,6 +24,7 @@ docker_dev_cmd_run() {
     case "$1" in
       -i|--image) image="$2"; shift 2 ;;
       -p|--profile) profile="$2"; shift 2 ;;
+      --preset) preset="$2"; shift 2 ;;
       -w|--workspace) workspace="$2"; shift 2 ;;
       --mount-codex) mount_codex=1; shift ;;
       --mount-claude) mount_claude=1; shift ;;
@@ -43,6 +45,7 @@ Create and start an interactive dev container (zsh).
 
 Options:
   -i, --image NAME     Image (u2204dev|u2404dev|u2604dev; u2604dev-opencode aliases u2604dev)
+  --preset NAME        Workflow preset: ai, full (see below)
   -w, --workspace DIR  Host path mounted at /workspace (default: cwd)
   --mount-codex        Mount $HOME/.codex → container home (see --nonroot)
   --mount-claude       Mount $HOME/.claude → container home
@@ -62,7 +65,11 @@ Options:
   -n, --name NAME      Container name (omit --rm behavior when set)
   --no-interactive     Skip prompts
   -h, --help           Show help
+
 EOF
+        # shellcheck source=presets.sh
+        source "$(dirname "${BASH_SOURCE[0]}")/presets.sh"
+        docker_dev_presets_help_text
         return 0
         ;;
       *) usage_error "Unknown run option: $1" ;;
@@ -71,6 +78,8 @@ EOF
 
   # shellcheck source=images.sh
   source "$(dirname "${BASH_SOURCE[0]}")/images.sh"
+  # shellcheck source=presets.sh
+  source "$(dirname "${BASH_SOURCE[0]}")/presets.sh"
   # shellcheck source=profiles.sh
   source "$(dirname "${BASH_SOURCE[0]}")/profiles.sh"
   # shellcheck source=nonroot.sh
@@ -86,21 +95,27 @@ EOF
   fi
   require_cmd docker
 
+  if [ -n "$preset" ]; then
+    docker_dev_apply_run_preset "$preset"
+  fi
+
   if [ "$do_pull" -eq 1 ] && [ "$do_build" -eq 1 ]; then
     usage_error "--pull and --build cannot be used together (local --build uses image:tag; --pull uses ghcr.io)"
   fi
 
   if [ "${DOCKER_DEV_INTERACTIVE:-1}" -eq 1 ] && [ -t 0 ] && [ -z "$workspace" ] \
+    && [ -z "$preset" ] \
     && [ "$mount_codex" -eq 0 ] && [ "$mount_claude" -eq 0 ] \
     && [ "$mount_ssh" -eq 0 ] && [ "$mount_opencode" -eq 0 ] && [ "$mount_pi" -eq 0 ] \
     && [ "$mount_docker_socket" -eq 0 ] && [ "$nonroot" -eq 0 ]; then
     echo "◆ cdev run"
     echo "  Image: ${image}"
-    prompt_yes_no "Mount Codex config from \$HOME/.codex?" y && mount_codex=1 || true
-    prompt_yes_no "Mount Claude Code config from \$HOME/.claude?" y && mount_claude=1 || true
-    prompt_yes_no "Mount SSH config from \$HOME/.ssh (read-only)?" y && mount_ssh=1 || true
-    prompt_yes_no "Mount OpenCode config from \$HOME/.config/opencode?" y && mount_opencode=1 || true
-    prompt_yes_no "Mount Pi agent config from \$HOME/.pi (when present)?" y && mount_pi=1 || true
+    docker_dev_sandbox_auth_doc_ref
+    prompt_mount_yes_no "Mount Codex config from \$HOME/.codex?" y && mount_codex=1 || true
+    prompt_mount_yes_no "Mount Claude Code config from \$HOME/.claude?" y && mount_claude=1 || true
+    prompt_mount_yes_no "Mount SSH config from \$HOME/.ssh (read-only)?" y && mount_ssh=1 || true
+    prompt_mount_yes_no "Mount OpenCode config from \$HOME/.config/opencode?" y && mount_opencode=1 || true
+    prompt_mount_yes_no "Mount Pi agent config from \$HOME/.pi (when present)?" y && mount_pi=1 || true
     prompt_yes_no "Mount host Docker socket (docker CLI in image → host daemon)?" n && mount_docker_socket=1 || true
     prompt_yes_no "Run as non-root dev user (bind-mount friendly)?" n && nonroot=1 || true
     if [ -z "$workspace" ]; then
