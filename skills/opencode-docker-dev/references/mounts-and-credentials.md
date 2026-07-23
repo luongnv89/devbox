@@ -34,7 +34,7 @@ exposure with extra steps.
 | `~/.claude` (ro) | `/root/.claude` | `--with-claude-skills` — task needs to read/follow a specific Claude Code skill |
 | `~/.agents` (ro) | `/root/.agents` | auto-added alongside `~/.claude` when it exists — see the symlink gotcha below |
 | `~/.gitconfig` (ro) | `/root/.gitconfig` | `--with-git-identity` — task will `git commit` and needs correct author identity |
-| task file (ro) | `/scratch/<name>` | `--file PATH` — see `mounts-and-credentials.md` → one-shot usage in SKILL.md |
+| task file (ro) | `/scratch/<name>` | `--file PATH` — see SKILL.md → One-shot mode |
 
 `run_opencode.sh` builds these automatically from its flags — read it before
 reimplementing the logic by hand.

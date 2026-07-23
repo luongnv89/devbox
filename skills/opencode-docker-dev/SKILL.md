@@ -183,8 +183,8 @@ OpenCode entirely (see `references/interactive-mode.md`).
 ```
 ◆ OpenCode Docker Dev (one-shot run)
 ··································································
-  Docker daemon:        √ pass (docker info)
-  Image ready:          √ pass (ghcr.io/luongnv89/u2604dev:latest)
+  Docker daemon:         √ pass (docker info)
+  Image ready:           √ pass (ghcr.io/luongnv89/u2604dev:latest)
   Mounts:                √ workspace, opencode config [+ claude skills] [+ git identity]
   Credential redline:    √ no SSH key, no GH token mounted
   Task exit code:        √ 0 | × <N> — <error from output>
