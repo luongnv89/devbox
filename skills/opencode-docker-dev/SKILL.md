@@ -84,6 +84,11 @@ task."`
 
 Never add a flag or workaround for SSH/GH access — that's the redline above.
 
+Additional options accepted by `run_opencode.sh`: `--image IMAGE` to override
+the default container image (`ghcr.io/luongnv89/u2604dev:latest`), and
+`--format FORMAT` to set `opencode run`'s output format (`default` or `json`;
+default: `default`).
+
 ### Step 2 — Run it
 
 ```bash
@@ -160,7 +165,7 @@ shows a rate-limit retry loop, treat the run as unfinished (see
 
 - [ ] `run_opencode.sh` exits `0`, and the transcript shows the task actually
       completed (not a stalled rate-limit retry)
-- [ ] `git -C "$PROJECT_DIR" status --short` and `git diff` were reviewed on
+- [ ] `git -C "$PROJECT_DIR" status --short` and `git -C "$PROJECT_DIR" diff` were reviewed on
       the host before anything is committed or pushed
 - [ ] No `~/.ssh` mount and no `GH_TOKEN`/`gh auth token` injection appear in
       the `docker run` invocation, in either mode

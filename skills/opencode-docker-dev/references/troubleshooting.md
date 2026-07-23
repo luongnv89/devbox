@@ -96,15 +96,20 @@ rewrites a commit that may already be pushed or referenced elsewhere).
 
 ## A second run reuses a stale container `--name`
 
-If a prior `run_opencode.sh` invocation was killed before `docker run --rm`
-finished cleaning up, or was started without `--rm`, a subsequent run will fail
-with a name collision (`docker: Error response from daemon: Conflict. The
-container name "/..." is already in use...`).
+This only affects **interactive mode**, whose `docker run` template in
+`references/interactive-mode.md` passes an explicit `--name <container-name>`.
+If the container from a prior interactive session was not stopped and removed
+(e.g. the pane was closed without `docker stop`), starting a new one with the
+same `--name` fails: `docker: Error response from daemon: Conflict. The
+container name "/..." is already in use...`
 
-Fix: remove the stale container with `docker rm <name>`, or use a unique
-`--name` per invocation (e.g. a timestamp suffix). By default this skill's
-scripts use `--rm`, so the container is removed automatically on normal exit;
-this issue only surfaces on abnormal termination.
+(One-shot mode's `run_opencode.sh` never passes `--name`, so Docker assigns
+a random name and collisions cannot occur.)
+
+Fix: `docker rm <container-name>` the stale container, or use a unique
+`--name` per invocation (e.g. a timestamp suffix). Containers started with
+`--rm` self-remove on normal exit, so this only surfaces when the container
+was not allowed to shut down cleanly.
 
 ## A pre-commit/test hook fails inside the container but passes standalone
 
