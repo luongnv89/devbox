@@ -33,7 +33,7 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 - **Oh My Zsh** with custom configuration
 - **Starship** prompt for a fast, cross-shell experience
 - Oh My Zsh plugins (built-in + custom): `git`, `docker`, `npm`, `pip`, `python`, plus custom plugins zsh-syntax-highlighting, zsh-autosuggestions, zsh-completions
-- **Docker CLI** (client only) via `common/install-docker-cli.sh` (`common/dev-image-base.sh:57-58`). **kubectl** is not installed (`u2404dev/wedisagree.zsh-theme:129-130`).
+- **Docker CLI** (client only) via `common/install-docker-cli.sh` (`common/dev-image-base.sh:59`). **kubectl** is not installed (`u2404dev/wedisagree.zsh-theme:129-130`).
 
 ### Editor
 
