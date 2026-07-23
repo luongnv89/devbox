@@ -285,7 +285,7 @@ Run checks directly:
 ./scripts/pre-commit.sh
 ```
 
-The checks format shell scripts with shfmt, run ShellCheck and Hadolint, build `u2604dev`, and remove temporary files. GitHub Actions builds changed images across three profiles, scans with Trivy, and publishes provenance attestations.
+The checks format shell scripts with shfmt, run ShellCheck and Hadolint, build `u2204dev` (`scripts/tasks/test.sh:11`), and remove temporary files. GitHub Actions builds changed images across three profiles, scans with Trivy, and publishes provenance attestations.
 
 To add an image, create `<image-name>/Dockerfile`, add `<image-name>/README.md`, update the image table, and follow [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-image).
 

@@ -8,7 +8,7 @@ How **docker-dev** images and the **`cdev`** CLI fit together. Facts below are d
 |------|------|
 | `u2204dev/`, `u2404dev/`, `u2604dev/` | Thin Dockerfiles + per-image `starship.toml`, `.vimrc`, themes (`u2604dev/Dockerfile:1-31`) |
 | `common/` | Shared install steps: base packages, Python, uv, gh, Docker CLI, AI tools, entrypoint (`common/dev-image-base.sh`) |
-| `cli/` | `cdev` launcher (`install.sh:24-27`, `cli/README.md`) |
+| `cli/` | `cdev` launcher (`install.sh:38-43`, `cli/README.md`) |
 | `scripts/` | Pre-commit pipeline (`scripts/pre-commit.sh:4-23`), validation helpers |
 | `.github/workflows/build-images.yml` | Multi-profile GHCR publish for the three `u*dev` images |
 
@@ -62,3 +62,4 @@ CI builds all three profiles per image (`.github/workflows/build-images.yml:88-8
 - [cdev CLI](../cli/README.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Development setup](development.md)
+- [Documentation decisions](DECISIONS.md)
