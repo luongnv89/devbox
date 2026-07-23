@@ -116,7 +116,7 @@ or safe to push.
 
 Before treating the run as done:
 
-1. `git -C "$PROJECT_DIR" status --short` and `git diff` — review every
+1. `git -C "$PROJECT_DIR" status --short` and `git -C "$PROJECT_DIR" diff` — review every
    changed file, not just the ones the task description mentioned. A broad
    `git add <dir>/` stages backup/build artifacts (`.bak`, `.orig`, stray
    build output) just as readily as real changes — see

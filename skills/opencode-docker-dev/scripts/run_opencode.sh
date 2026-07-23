@@ -68,8 +68,12 @@ if [ -z "$PROJECT_DIR" ]; then
   echo "Error: --project DIR is required (the local project directory to mount at /workspace)." >&2
   exit 1
 fi
-if [ ! -d "$PROJECT_DIR" ]; then
+if [ ! -e "$PROJECT_DIR" ]; then
   echo "Error: project directory '$PROJECT_DIR' does not exist." >&2
+  exit 1
+fi
+if [ ! -d "$PROJECT_DIR" ]; then
+  echo "Error: project directory '$PROJECT_DIR' exists but is not a directory." >&2
   exit 1
 fi
 if [ -z "$MESSAGE" ]; then
@@ -135,7 +139,7 @@ trap cleanup EXIT
 
 if [ -n "$TASK_FILE" ]; then
   SCRATCH_DIR="$(mktemp -d)"
-  BASENAME="$(basename "$TASK_FILE")"
+  BASENAME="$(basename -- "$TASK_FILE")"
   cp "$TASK_FILE" "$SCRATCH_DIR/$BASENAME"
   MOUNTS+=(-v "${SCRATCH_DIR}:/scratch:ro")
   OPENCODE_ARGS+=("--file=/scratch/$BASENAME")

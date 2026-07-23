@@ -94,6 +94,18 @@ output. If one snuck in, don't ship it: `git rm --cached <file>` and commit
 the removal as a separate commit rather than amending (`git commit --amend`
 rewrites a commit that may already be pushed or referenced elsewhere).
 
+## A second run reuses a stale container `--name`
+
+If a prior `run_opencode.sh` invocation was killed before `docker run --rm`
+finished cleaning up, or was started without `--rm`, a subsequent run will fail
+with a name collision (`docker: Error response from daemon: Conflict. The
+container name "/..." is already in use...`).
+
+Fix: remove the stale container with `docker rm <name>`, or use a unique
+`--name` per invocation (e.g. a timestamp suffix). By default this skill's
+scripts use `--rm`, so the container is removed automatically on normal exit;
+this issue only surfaces on abnormal termination.
+
 ## A pre-commit/test hook fails inside the container but passes standalone
 
 If the project's test suite reads from the real user's config/state directory
