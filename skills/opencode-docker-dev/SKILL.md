@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Requires Docker (Desktop or Engine) on PATH and running. Interactive mode additionally needs `cdev` (auto-installable from luongnv89/docker-dev) plus a pane-management skill (herdr-agent-comms or tmux-agent-comms)."
 effort: medium
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   author: "Luong NGUYEN <luongnv89@gmail.com>"
 ---
 
@@ -117,7 +117,10 @@ or safe to push.
 Before treating the run as done:
 
 1. `git -C "$PROJECT_DIR" status --short` and `git diff` — review every
-   changed file, not just the ones the task description mentioned.
+   changed file, not just the ones the task description mentioned. A broad
+   `git add <dir>/` stages backup/build artifacts (`.bak`, `.orig`, stray
+   build output) just as readily as real changes — see
+   `references/troubleshooting.md`.
 2. If the task touched dependency files (`package.json`, lockfiles, etc.),
    diff them specifically for container-architecture leakage — a Linux
    binary promoted into a real (non-optional) dependency has shipped from

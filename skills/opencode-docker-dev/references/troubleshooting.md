@@ -78,6 +78,22 @@ that's container-architecture leakage, not an intended change — revert it and
 reproduce the intended change (e.g. a version bump) by hand or by reinstalling
 on the host's native architecture instead.
 
+## A broad `git add <dir>/` sweeps up backup or build artifacts
+
+Observed directly: a task committed inside the container ran `git add
+skills/opencode-docker-dev/` and picked up `SKILL.md.bak` — a backup file a
+prior tool run (`asm eval --fix`) had left on disk — into the commit. `git
+add <dir>/` stages *everything* under that path, tracked intent or not; task
+text asking for "the skill directory" doesn't distinguish source files from
+incidental artifacts sitting next to them.
+
+Before treating a commit made inside the container as done, check `git show
+--stat HEAD` (or `git diff --cached` before the commit lands) for files the
+task didn't actually intend to touch — `.bak`, `.orig`, `*.log`, build
+output. If one snuck in, don't ship it: `git rm --cached <file>` and commit
+the removal as a separate commit rather than amending (`git commit --amend`
+rewrites a commit that may already be pushed or referenced elsewhere).
+
 ## A pre-commit/test hook fails inside the container but passes standalone
 
 If the project's test suite reads from the real user's config/state directory
