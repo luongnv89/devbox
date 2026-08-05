@@ -63,11 +63,11 @@ if [ -d "$OPENCODE_CONFIG" ] && [ "$(ls -A "$OPENCODE_CONFIG" 2>/dev/null)" ]; t
 fi
 
 if [ "$OPENCODE_MOUNTED" -eq 1 ]; then
-    # Copy host config into writable volume, then exec zsh.
+    # Deprecated helper: run as root so mode-0700 /root mounts and named-volume
+    # init succeed. Prefer: cdev run --mount-opencode [--nonroot]
     # Image must come before -c: with --entrypoint sh, a leading -c is
     # parsed as docker run --cpu-shares, not shell -c.
     exec docker run -it --rm \
-        --user "$UID:$GID" \
         $VOLUMES \
         --hostname opencode-dev \
         --entrypoint sh \
