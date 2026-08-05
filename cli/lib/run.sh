@@ -12,6 +12,7 @@ docker_dev_cmd_run() {
   local mount_claude=0
   local mount_ssh=0
   local mount_opencode=0
+  local mount_opencode_data=0
   local mount_pi=0
   local mount_docker_socket=0
   local preset=""
@@ -30,6 +31,7 @@ docker_dev_cmd_run() {
       --mount-claude) mount_claude=1; shift ;;
       --mount-ssh) mount_ssh=1; shift ;;
       --mount-opencode) mount_opencode=1; shift ;;
+      --mount-opencode-data) mount_opencode_data=1; shift ;;
       --mount-pi) mount_pi=1; shift ;;
       --mount-docker-socket) mount_docker_socket=1; shift ;;
       --nonroot) nonroot=1; shift ;;
@@ -51,6 +53,9 @@ Options:
   --mount-claude       Mount $HOME/.claude → container home
   --mount-ssh          Mount $HOME/.ssh → container home (read-only)
   --mount-opencode     Mount $HOME/.config/opencode → container home
+  --mount-opencode-data
+                       Mount $HOME/.local/share/opencode → writable volume
+                       (isolates usage tracking/limits from host; copies auth.json)
   --mount-pi           Mount $HOME/.pi → container home when present on host
   --mount-docker-socket
                        Mount host Docker socket (/var/run/docker.sock) so the
@@ -106,7 +111,7 @@ EOF
   if [ "${DOCKER_DEV_INTERACTIVE:-1}" -eq 1 ] && [ -t 0 ] && [ -z "$workspace" ] \
     && [ -z "$preset" ] \
     && [ "$mount_codex" -eq 0 ] && [ "$mount_claude" -eq 0 ] \
-    && [ "$mount_ssh" -eq 0 ] && [ "$mount_opencode" -eq 0 ] && [ "$mount_pi" -eq 0 ] \
+    && [ "$mount_ssh" -eq 0 ] && [ "$mount_opencode" -eq 0 ] && [ "$mount_opencode_data" -eq 0 ] && [ "$mount_pi" -eq 0 ] \
     && [ "$mount_docker_socket" -eq 0 ] && [ "$nonroot" -eq 0 ]; then
     echo "◆ cdev run"
     echo "  Image: ${image}"
@@ -115,6 +120,7 @@ EOF
     prompt_mount_yes_no "Mount Claude Code config from \$HOME/.claude?" y && mount_claude=1 || true
     prompt_mount_yes_no "Mount SSH config from \$HOME/.ssh (read-only)?" y && mount_ssh=1 || true
     prompt_mount_yes_no "Mount OpenCode config from \$HOME/.config/opencode?" y && mount_opencode=1 || true
+    prompt_mount_yes_no "Mount OpenCode data (usage/limits) from \$HOME/.local/share/opencode?" n && mount_opencode_data=1 || true
     prompt_mount_yes_no "Mount Pi agent config from \$HOME/.pi (when present)?" y && mount_pi=1 || true
     prompt_yes_no "Mount host Docker socket (docker CLI in image → host daemon)?" n && mount_docker_socket=1 || true
     prompt_yes_no "Run as non-root dev user (bind-mount friendly)?" n && nonroot=1 || true
@@ -175,7 +181,21 @@ EOF
     local opencode_home="${HOME}/.config/opencode"
     [ -d "$opencode_home" ] || die "OpenCode config directory missing: ${opencode_home}"
     docker_dev_dir_has_content "$opencode_home" || die "OpenCode config directory is empty: ${opencode_home}"
-    volumes+=(-v "${opencode_home}:${container_home}/.config/opencode")
+    # Mount host config read-only at a separate path, then copy into a named
+    # volume at startup. The named volume is writable (for usage tracking, etc.)
+    # but isolated from the host — usage in the container never pollutes the host.
+    volumes+=(-v "${opencode_home}:${container_home}/.config/opencode-host:ro")
+    volumes+=(-v "opencode-config:${container_home}/.config/opencode")
+  fi
+
+  if [ "$mount_opencode_data" -eq 1 ]; then
+    local opencode_data_home="${HOME}/.local/share/opencode"
+    [ -d "$opencode_data_home" ] || die "OpenCode data directory missing: ${opencode_data_home}"
+    # Mount auth.json read-only at a separate path, then copy into the
+    # writable volume at startup. The rest (usage DB, logs, etc.) goes to
+    # the writable named volume — usage tracking stays isolated from host.
+    volumes+=(-v "${opencode_data_home}/auth.json:${container_home}/.local/share/opencode/auth.json-ro:ro")
+    volumes+=(-v "opencode-data:${container_home}/.local/share/opencode")
   fi
 
   if [ "$mount_docker_socket" -eq 1 ]; then
@@ -208,7 +228,29 @@ EOF
   if docker_dev_nonroot_enabled "$nonroot"; then
     run_args+=(--user "$(id -u):$(id -g)")
   fi
-  run_args+=("${volumes[@]}" -w /workspace "$local_tag" zsh)
+
+  # If opencode or opencode-data is mounted, override entrypoint to copy
+  # host data into writable named volumes before starting zsh. This keeps
+  # usage tracking isolated from the host while giving the container your
+  # full config + auth.
+  # Note: --entrypoint must come BEFORE the image name.
+  if [ "$mount_opencode" -eq 1 ] || [ "$mount_opencode_data" -eq 1 ]; then
+    # Write init script to a temp file and mount it into the container.
+    # This avoids shell quoting issues with the compound command.
+    local opencode_init_script
+    opencode_init_script="$(mktemp)"
+    cat > "$opencode_init_script" <<INIT_EOF
+[ -z "\$(ls -A ${container_home}/.config/opencode 2>/dev/null)" ] && cp -a ${container_home}/.config/opencode-host/. ${container_home}/.config/opencode/ 2>/dev/null || true
+[ -f ${container_home}/.local/share/opencode/auth.json ] || [ -f ${container_home}/.local/share/opencode/auth.json-ro ] || true
+if [ -f ${container_home}/.local/share/opencode/auth.json-ro ]; then
+  cp -a ${container_home}/.local/share/opencode/auth.json-ro ${container_home}/.local/share/opencode/auth.json 2>/dev/null || true
+fi
+exec zsh
+INIT_EOF
+    run_args+=("${volumes[@]}" -v "${opencode_init_script}:/opencode-init:ro" -w /workspace --entrypoint sh "$local_tag" /opencode-init)
+  else
+    run_args+=("${volumes[@]}" -w /workspace "$local_tag" zsh)
+  fi
 
   [ "${DOCKER_DEV_QUIET:-0}" -eq 0 ] && {
     echo ""
@@ -220,6 +262,7 @@ EOF
     [ "$mount_claude" -eq 1 ] && echo "  Claude:     \$HOME/.claude → ${container_home}/.claude"
     [ "$mount_ssh" -eq 1 ] && echo "  SSH:        \$HOME/.ssh → ${container_home}/.ssh (ro)"
     [ "$mount_opencode" -eq 1 ] && echo "  OpenCode:   \$HOME/.config/opencode → ${container_home}/.config/opencode"
+    [ "$mount_opencode_data" -eq 1 ] && echo "  OpenCode:   \$HOME/.local/share/opencode → writable volume (usage isolated)"
     [ "$pi_mounted" -eq 1 ] && echo "  Pi:         \$HOME/.pi → ${container_home}/.pi"
     [ "$mount_docker_socket" -eq 1 ] && echo "  Docker:     /var/run/docker.sock (host daemon — privileged)"
     echo ""
