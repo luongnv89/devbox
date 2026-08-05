@@ -63,14 +63,16 @@ if [ -d "$OPENCODE_CONFIG" ] && [ "$(ls -A "$OPENCODE_CONFIG" 2>/dev/null)" ]; t
 fi
 
 if [ "$OPENCODE_MOUNTED" -eq 1 ]; then
-    # Copy host config into writable volume, then exec zsh
+    # Copy host config into writable volume, then exec zsh.
+    # Image must come before -c: with --entrypoint sh, a leading -c is
+    # parsed as docker run --cpu-shares, not shell -c.
     exec docker run -it --rm \
         --user "$UID:$GID" \
         $VOLUMES \
         --hostname opencode-dev \
         --entrypoint sh \
-        -c "[ -z \"\$(ls -A /root/.config/opencode 2>/dev/null)\" ] && cp -a /root/.config/opencode-host/. /root/.config/opencode/ 2>/dev/null || true; exec zsh" \
-        "$IMAGE"
+        "$IMAGE" \
+        -c "[ -z \"\$(ls -A /root/.config/opencode 2>/dev/null)\" ] && cp -a /root/.config/opencode-host/. /root/.config/opencode/ 2>/dev/null || true; exec zsh"
 else
     exec docker run -it --rm \
         --user "$UID:$GID" \

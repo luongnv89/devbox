@@ -190,11 +190,15 @@ EOF
 
   if [ "$mount_opencode_data" -eq 1 ]; then
     local opencode_data_home="${HOME}/.local/share/opencode"
+    local opencode_auth_json="${opencode_data_home}/auth.json"
     [ -d "$opencode_data_home" ] || die "OpenCode data directory missing: ${opencode_data_home}"
+    # Docker creates a host directory when bind-mounting a missing path; require
+    # a real file so we never mount/copy a directory named auth.json.
+    [ -f "$opencode_auth_json" ] || die "OpenCode auth file missing (expected regular file): ${opencode_auth_json}"
     # Mount auth.json read-only at a separate path, then copy into the
     # writable volume at startup. The rest (usage DB, logs, etc.) goes to
     # the writable named volume — usage tracking stays isolated from host.
-    volumes+=(-v "${opencode_data_home}/auth.json:${container_home}/.local/share/opencode/auth.json-ro:ro")
+    volumes+=(-v "${opencode_auth_json}:${container_home}/.local/share/opencode/auth.json-ro:ro")
     volumes+=(-v "opencode-data:${container_home}/.local/share/opencode")
   fi
 
@@ -235,13 +239,30 @@ EOF
   # full config + auth.
   # Note: --entrypoint must come BEFORE the image name.
   if [ "$mount_opencode" -eq 1 ] || [ "$mount_opencode_data" -eq 1 ]; then
+    # Named volumes are root-owned by default. When running --nonroot, seed
+    # mount-point ownership so the host uid:gid can copy into them.
+    if docker_dev_nonroot_enabled "$nonroot"; then
+      local host_uid host_gid seed_vols=()
+      host_uid="$(id -u)"
+      host_gid="$(id -g)"
+      if [ "$mount_opencode" -eq 1 ]; then
+        seed_vols+=(-v "opencode-config:${container_home}/.config/opencode")
+      fi
+      if [ "$mount_opencode_data" -eq 1 ]; then
+        seed_vols+=(-v "opencode-data:${container_home}/.local/share/opencode")
+      fi
+      log_verbose "Seeding OpenCode named volume ownership for non-root uid:gid ${host_uid}:${host_gid}"
+      docker run --rm --user 0:0 "${seed_vols[@]}" --entrypoint sh "$local_tag" -c \
+        "mkdir -p ${container_home}/.config/opencode ${container_home}/.local/share/opencode && chown -R ${host_uid}:${host_gid} ${container_home}/.config/opencode ${container_home}/.local/share/opencode" \
+        || die "Failed to prepare OpenCode named volumes for non-root user"
+    fi
+
     # Write init script to a temp file and mount it into the container.
     # This avoids shell quoting issues with the compound command.
     local opencode_init_script
     opencode_init_script="$(mktemp)"
     cat > "$opencode_init_script" <<INIT_EOF
 [ -z "\$(ls -A ${container_home}/.config/opencode 2>/dev/null)" ] && cp -a ${container_home}/.config/opencode-host/. ${container_home}/.config/opencode/ 2>/dev/null || true
-[ -f ${container_home}/.local/share/opencode/auth.json ] || [ -f ${container_home}/.local/share/opencode/auth.json-ro ] || true
 if [ -f ${container_home}/.local/share/opencode/auth.json-ro ]; then
   cp -a ${container_home}/.local/share/opencode/auth.json-ro ${container_home}/.local/share/opencode/auth.json 2>/dev/null || true
 fi
