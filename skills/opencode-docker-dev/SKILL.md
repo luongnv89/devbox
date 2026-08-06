@@ -63,7 +63,8 @@ permission dialogs to click through (`--auto` handles them; see
 ### Step 1 — Decide mounts
 
 Every run mounts the project directory (`/workspace`) and `~/.config/opencode`
-(OpenCode's own auth). Add flags only for what the task needs:
+(OpenCode's own auth; mounted read-only, copied to a writable volume at startup
+for usage isolation). Add flags only for what the task needs:
 
 - `--with-claude-skills` — task must read/follow a **user-level** Claude Code
   skill living under `~/.claude/skills/` (mounts `~/.claude` **and**

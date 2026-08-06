@@ -37,6 +37,7 @@ MESSAGE=""
 TASK_FILE=""
 WITH_CLAUDE_SKILLS=0
 WITH_GIT_IDENTITY=0
+OPENCODE_MOUNTED=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -95,8 +96,16 @@ bash "$SCRIPT_DIR/preflight.sh" "$IMAGE"
 
 MOUNTS=(-v "${PROJECT_DIR}:/workspace")
 
+# Track whether we need to override the entrypoint for opencode init.
+ENTRYPOINT_ARGS=()
+
 if [ -d "$HOME/.config/opencode" ]; then
-  MOUNTS+=(-v "$HOME/.config/opencode:/root/.config/opencode")
+  # Mount host config read-only at a separate path, then copy into a writable
+  # named volume at startup. This keeps usage tracking isolated from the host
+  # while giving the container your full config.
+  MOUNTS+=(-v "$HOME/.config/opencode:/root/.config/opencode-host:ro")
+  MOUNTS+=(-v "opencode-config:/root/.config/opencode")
+  OPENCODE_MOUNTED=1
 else
   echo "Warning: $HOME/.config/opencode not found — the container will have no OpenCode auth/config and may prompt to log in. Run 'opencode' once on the host first if this task needs a real provider." >&2
 fi
@@ -147,9 +156,26 @@ fi
 
 OPENCODE_ARGS+=(--auto --format "$FORMAT")
 
+# If opencode config is mounted, override entrypoint to copy host config into
+# the writable named volume before running opencode.
+if [ "$OPENCODE_MOUNTED" -eq 1 ]; then
+  ENTRYPOINT_ARGS=(--entrypoint sh -c "[ -z \"\$(ls -A /root/.config/opencode 2>/dev/null)\" ] && cp -a /root/.config/opencode-host/. /root/.config/opencode/ 2>/dev/null || true; exec opencode ${OPENCODE_ARGS[*]}")
+fi
+
 echo "Running OpenCode in a disposable container (image: $IMAGE, workspace: $PROJECT_DIR)..." >&2
-docker run --rm \
-  "${MOUNTS[@]}" \
-  -w /workspace \
-  "$IMAGE" \
-  opencode "${OPENCODE_ARGS[@]}"
+
+if [ "$OPENCODE_MOUNTED" -eq 1 ]; then
+  # Override entrypoint: copy host config to writable volume, then run opencode.
+  docker run --rm \
+    "${MOUNTS[@]}" \
+    -w /workspace \
+    --entrypoint sh \
+    -c "[ -z \"\$(ls -A /root/.config/opencode 2>/dev/null)\" ] && cp -a /root/.config/opencode-host/. /root/.config/opencode/ 2>/dev/null || true; exec opencode ${OPENCODE_ARGS[*]}" \
+    "$IMAGE"
+else
+  docker run --rm \
+    "${MOUNTS[@]}" \
+    -w /workspace \
+    "$IMAGE" \
+    opencode "${OPENCODE_ARGS[@]}"
+fi
