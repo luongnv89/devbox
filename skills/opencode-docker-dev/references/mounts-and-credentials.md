@@ -30,11 +30,21 @@ exposure with extra steps.
 | Mount | Container path | When |
 |---|---|---|
 | project directory | `/workspace` | always — the task's target |
-| `~/.config/opencode` | `/root/.config/opencode` | always — OpenCode auth/config; omitted, the container has no provider and every task fails with "No provider available" |
+| `~/.config/opencode` | `/root/.config/opencode-host` (ro) + `opencode-config` volume → `/root/.config/opencode` | always — host config mounted read-only, copied to writable volume at startup to isolate usage tracking |
 | `~/.claude` (ro) | `/root/.claude` | `--with-claude-skills` — task needs to read/follow a specific Claude Code skill |
 | `~/.agents` (ro) | `/root/.agents` | auto-added alongside `~/.claude` when it exists — see the symlink gotcha below |
 | `~/.gitconfig` (ro) | `/root/.gitconfig` | `--with-git-identity` — task will `git commit` and needs correct author identity |
 | task file (ro) | `/scratch/<name>` | `--file PATH` — see SKILL.md → One-shot mode |
+
+### Usage tracking isolation
+
+`~/.config/opencode` is mounted read-only at `/root/.config/opencode-host`, then
+copied into a writable named volume (`opencode-config`) at `/root/.config/opencode`
+at container startup. This keeps usage tracking and state writes isolated from the
+host — the container gets a fresh local database while still using your full config.
+
+The `run_opencode.sh` script handles this automatically; you don't need to manage
+the named volume yourself.
 
 `run_opencode.sh` builds these automatically from its flags — read it before
 reimplementing the logic by hand.
