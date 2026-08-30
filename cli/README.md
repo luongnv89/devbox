@@ -64,6 +64,8 @@ Common env vars (examples use placeholders): `ANTHROPIC_API_KEY` (Claude), `OPEN
 
 Full table and examples: [../README.md#authentication-for-ai-clis-in-the-sandbox](../README.md#authentication-for-ai-clis-in-the-sandbox).
 
+Inside a running container, `update-ai-tools` (root or sudo) upgrades the baked-in AI CLIs to npm `@latest` and refreshes `asm` skill repos (`idd`, `skills`).
+
 ## Host Docker socket (optional)
 
 Dev images ship the Docker **client** only. Pass `--mount-docker-socket` to bind `/var/run/docker.sock` so `docker` / `docker compose` inside the container use the host daemon. This is **privileged**: processes in the container can administer Docker on the host. Default interactive prompt answers **no**; pass the flag explicitly in scripts.

@@ -13,7 +13,7 @@ both of these when attempted directly, and that verdict is correct.
 task: version bump, changelog, local commit, local tag — then stop. Push and
 `gh release create` happen on the host afterward, after a human reviews the
 diff. This is not a limitation to work around; it's the point — a bad or
-compromised task run can, at worst, leave a mess in a disposable container
+compromised task run can, at worst, leave a mess in a sandboxed container
 and an unpushed local commit, never a pushed commit, a force-push, or a
 leaked credential.
 
@@ -25,29 +25,41 @@ classifier block by re-deriving the credential a different way (e.g. reading
 `gh auth token` into a file the container can reach) — that's the same
 exposure with extra steps.
 
+The container is **kept by default** (still running after the task) so the
+user can attach. That does not widen the mount list — leftover containers
+are still sandboxed; they are not extra credential exposure. Ask before
+`docker rm -fv`; the `-v` removes the anonymous config volume containing the
+copied credentials.
+
 ## Standard mounts
 
 | Mount | Container path | When |
 |---|---|---|
 | project directory | `/workspace` | always — the task's target |
-| `~/.config/opencode` | `/root/.config/opencode-host` (ro) + `opencode-config` volume → `/root/.config/opencode` | always — host config mounted read-only, copied to writable volume at startup to isolate usage tracking |
+| `~/.config/opencode` (ro) | `/root/.config/opencode-host` → anonymous volume at `/root/.config/opencode` | always when present — copied once at container creation for isolated OpenCode auth/config and usage state |
 | `~/.claude` (ro) | `/root/.claude` | `--with-claude-skills` — task needs to read/follow a specific Claude Code skill |
 | `~/.agents` (ro) | `/root/.agents` | auto-added alongside `~/.claude` when it exists — see the symlink gotcha below |
 | `~/.gitconfig` (ro) | `/root/.gitconfig` | `--with-git-identity` — task will `git commit` and needs correct author identity |
 | task file (ro) | `/scratch/<name>` | `--file PATH` — see SKILL.md → One-shot mode |
 
-### Usage tracking isolation
-
-`~/.config/opencode` is mounted read-only at `/root/.config/opencode-host`, then
-copied into a writable named volume (`opencode-config`) at `/root/.config/opencode`
-at container startup. This keeps usage tracking and state writes isolated from the
-host — the container gets a fresh local database while still using your full config.
-
-The `run_opencode.sh` script handles this automatically; you don't need to manage
-the named volume yourself.
-
 `run_opencode.sh` builds these automatically from its flags — read it before
 reimplementing the logic by hand.
+
+### OpenCode config snapshot
+
+The host config is never mounted directly at the path OpenCode writes. When
+`~/.config/opencode` exists, the script mounts it read-only at
+`/root/.config/opencode-host` and creates an anonymous writable volume at
+`/root/.config/opencode`. The image's bundled contents are copied into that
+volume by Docker, then the container startup command overlays a host-config
+snapshot and records a completion marker before starting `sleep infinity`.
+
+This is a snapshot-at-container-creation boundary: OpenCode can update its
+container-local auth usage state, sessions, and cache, but cannot modify the
+host config, and changes made to the host later are not visible to an existing
+container. `--exec-in` reuses the existing snapshot; create a new container to
+refresh it. Remove a kept container with `docker rm -fv <name>` so the copied
+credential volume is removed too.
 
 ## The `~/.claude` symlink gotcha
 
@@ -83,9 +95,10 @@ normally want to review.
 Inside this skill's containers, `--auto` is safe **because the mounts already
 enforce the boundary** — auto-approving actions inside a sandbox that
 physically cannot reach `~/.ssh`, a GitHub token, or any directory besides
-`/workspace`, `/root/.config/opencode`, and (optionally) read-only config
-bounds the blast radius to "OpenCode did something wrong inside the mounted
-project directory," which `git status`/`git diff` on the host catches before
-anything ships. The safety property comes from the mount list, not from
+`/workspace`, the isolated `/root/.config/opencode` snapshot, and (optionally)
+read-only config bounds the blast radius to "OpenCode did something wrong
+inside the mounted project directory," which `git status`/`git diff` on the
+host catches before anything ships. The safety property comes from the mount
+list, not from
 `--auto` itself — get the mount list wrong (e.g. add `~/.ssh` "just for this
 one task") and `--auto` stops being safe.

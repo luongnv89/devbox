@@ -81,7 +81,7 @@ Always test your changes by building the relevant image:
 docker build -t test-u2604dev -f u2604dev/Dockerfile .
 
 # Test all images
-for dir in u2204dev u2404dev u2604dev; do
+for dir in u2204dev u2404dev u2604dev devbox; do
   docker build -t "test-${dir}" -f "${dir}/Dockerfile" .
 done
 ```
@@ -90,13 +90,15 @@ done
 
 To add a new development environment image:
 
-1. Create a new directory following the naming convention:
+1. Create a new directory with a descriptive image name:
 
 ```bash
-mkdir -p uYYMMdev
+mkdir -p <image-name>
 ```
 
-2. Create a thin `Dockerfile` in the new directory (base tag, `UBUNTU_VERSION`, image-specific `.vimrc` / `starship.toml`); shared steps live in `common/dev-image-base.sh` and `common/install-python.sh`
+2. Create a Dockerfile in the new directory. Ubuntu images can use the shared
+   Ubuntu installers; distro-specific images should use a dedicated base
+   installer and reuse only compatible shared steps.
 
 3. Create a `README.md` with:
    - Image description
@@ -110,7 +112,8 @@ mkdir -p uYYMMdev
 
 5. Update the main `README.md` to include your new image
 
-6. The CI/CD workflow will automatically detect and build the new image
+6. Add the image to the change-detection and build matrix in
+   `.github/workflows/build-images.yml`
 
 ## Pull Request Process
 
@@ -200,33 +203,32 @@ docker build --build-arg AI_VERIFY_MODE=strict -f u2604dev/Dockerfile .
 
 ## Global npm supply-chain checks
 
-- **CI:** `scripts/verify-ai-globals-audit.sh` runs on every workflow (parses pinned versions from `install-ai-tools.sh`, prints the full `npm audit` report, and **fails on critical** severity). **High** findings are logged for maintainers to address via version bumps; they do not block the workflow while upstream fixes are pending. This covers **transitive npm vulnerabilities** in the pinned AI CLIs; it does not replace Trivy.
-- **Tracked high advisories (non-blocking):** as of pin `@mariozechner/pi-coding-agent@0.73.1`, `npm audit` may report high issues (e.g. GHSA-7v5m-pr3q-6453, GHSA-jfgx-wxx8-mp94, GHSA-r95r-rj6r-c39x). There is no newer fixed release on npm yet; bump `PI_CODING_AGENT_VERSION` when upstream ships a patched version.
+- **CI:** `scripts/verify-ai-globals-audit.sh` runs on every workflow (resolves **latest** versions of the AI npm packages, prints the full `npm audit` report, and **fails on critical** severity). **High** findings are logged; they do not block the workflow. This covers **transitive npm vulnerabilities** in current latest AI CLIs; it does not replace Trivy.
 - **Transient registry errors in CI:** occasional `auth.docker.io` 502 responses during `docker/build-push-action` are infrastructure flakes. Re-run failed matrix jobs (`gh run rerun <run-id> --failed`) rather than changing image code.
 - **Images:** Published **ai-full** images on `main` are still scanned with **Trivy** (OS and installed packages in the image). Use both gates: audit at build time, Trivy after push.
 
-## Bumping AI CLI versions
+## AI CLI versions (always latest)
 
-Dev images install global AI CLIs from `common/install-ai-tools.sh` with **explicit npm versions** so CI and sandbox builds stay reproducible. The script reads `DEV_IMAGE_PROFILE` (`minimal` skips AI npm; `standard` installs OpenCode/Pi only; `ai-full` is the default).
+Dev images install global AI CLIs from `common/install-ai-tools.sh` at **npm `@latest`** (`standard`: OpenCode + Pi + `agent-skill-manager`; `ai-full`: also Claude Code, Codex, pi-extensions, herdr). `minimal` skips AI npm CLIs but still ships `/usr/local/bin/update-ai-tools`.
 
-When upgrading a CLI:
+CI and `cdev build` pass `AI_TOOLS_CACHEBUST` so the AI layer is not served from a stale Docker cache.
 
-1. Check the latest version: `npm view <package-name> version`
-2. Update the matching `*_VERSION` variable at the top of `common/install-ai-tools.sh`
-3. Run `./scripts/pre-commit.sh` (includes a Docker build that runs the install script)
-4. Note the bump in `CHANGELOG.md` under `[Unreleased]`
+Inside a running container (as root or via sudo):
 
-Packages pinned today:
+```bash
+update-ai-tools
+```
 
-| Variable | npm package |
+That upgrades the same package set as image build, re-runs `asm install` for `github:luongnv89/idd` and `github:luongnv89/skills`, and is the way to silence in-app “install new version” nags without rebuilding.
+
+Packages (always `@latest`):
+
+| Profile | npm packages |
 |----------|-------------|
-| `CLAUDE_CODE_VERSION` | `@anthropic-ai/claude-code` |
-| `CODEX_VERSION` | `@openai/codex` |
-| `OPENCODE_AI_VERSION` | `opencode-ai` |
-| `PI_CODING_AGENT_VERSION` | `@mariozechner/pi-coding-agent` |
-| `OPENCODE_WARP_VERSION` | `@warp-dot-dev/opencode-warp` |
+| `standard` | `opencode-ai`, `@mariozechner/pi-coding-agent`, `agent-skill-manager` |
+| `ai-full` | those plus `@anthropic-ai/claude-code`, `@openai/codex` |
 
-`pi install npm:…` extensions and `herdr` / `pi-extensions` installers are not npm-pinned in this script; bump those when their upstream install docs change.
+`pi install npm:…` extensions and `herdr` / `pi-extensions` installers follow their upstream install scripts. Skills are installed with `asm` into `~/.agents/skills` and linked into the CLIs the profile ships.
 
 ## Testing
 

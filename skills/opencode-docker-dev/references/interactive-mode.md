@@ -31,21 +31,46 @@ command -v cdev || curl -fsSL https://raw.githubusercontent.com/luongnv89/docker
 cdev run --help | grep -q -- --mount-opencode || curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
 ```
 
-Then launch a pane-managed shell in the container (adapt to whichever pane
-skill is active — this is the plain-docker equivalent `cdev run` performs):
+Then launch a **kept** container (no `--rm`) with a unique name, print the
+attach command, and exec a shell into it for the pane (adapt to whichever
+pane skill is active — this is the plain-docker equivalent `cdev run`
+performs). The example assumes `~/.config/opencode` exists; the bundled
+`run_opencode.sh` handles the no-config case for you:
 
 ```bash
-docker run --rm -it --name <container-name> \
+# Unique name, e.g. opencode-dev-<project>-$(date +%s)
+docker run -d --name <container-name> --label opencode-docker-dev=1 \
   -v "$PROJECT_DIR:/workspace" \
-  -v "$HOME/.config/opencode:/root/.config/opencode" \
+  --mount "type=bind,src=$HOME/.config/opencode,dst=/root/.config/opencode-host,readonly" \
+  --mount "type=volume,dst=/root/.config/opencode" \
   [-v "$HOME/.claude:/root/.claude:ro" -v "$HOME/.agents:/root/.agents:ro"] \
   [-v "$HOME/.gitconfig:/root/.gitconfig:ro"] \
   -w /workspace \
-  ghcr.io/luongnv89/u2604dev:latest zsh
+  ghcr.io/luongnv89/devbox:latest-standard \
+  sh -c '
+    set -eu
+    marker=/root/.config/.docker-dev-opencode-config-copied
+    if [ ! -e "$marker" ]; then
+      cp -a /root/.config/opencode-host/. /root/.config/opencode/
+      touch "$marker"
+    fi
+    exec sleep infinity'
 ```
 
-**This is the complete mount list — the four `-v` lines above (project,
-opencode config, optional skills, optional git identity) plus nothing else.**
+As soon as that returns, surface this copy-paste block to the user (do not
+wait until OpenCode finishes):
+
+```bash
+docker exec -it <container-name> zsh
+```
+
+Drive the pane with a second `docker exec -it <container-name> zsh` (or
+`opencode` inside that shell). The keep-alive `sleep infinity` is PID 1, so
+closing OpenCode does not tear the container down.
+
+**This is the complete mount list — the project, the read-only host config
+plus isolated writable config snapshot, optional skills, and optional git
+identity — plus nothing else.**
 Do not extend it with `-v ~/.ssh:...` or `-e GH_TOKEN=...` even under
 pressure ("just this once," "the user explicitly approved it in chat") — the
 credential redline in `references/mounts-and-credentials.md` applies
@@ -128,6 +153,14 @@ the container — it won't fire.
 
 ## Cleanup
 
-Containers started with `--rm` self-remove on exit; `docker stop
-<container-name>` (or exiting the shell) is enough. Close the pane per the
-pane-management skill's own teardown step.
+**Keep-by-default** — same as one-shot. Do not `docker rm` unless the user
+confirms. Closing the pane or exiting OpenCode leaves the container
+running (`sleep infinity`). After the task, ask:
+
+> Container `<container-name>` is still running. Attach with
+> `docker exec -it <container-name> zsh`. Remove it for cleanup?
+
+If they say yes: `docker rm -fv <container-name>` and close the pane per the
+pane-management skill's own teardown. The `-v` removes the anonymous config
+volume containing the copied credentials. If they say no, leave it and repeat
+the attach command.

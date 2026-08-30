@@ -6,15 +6,20 @@ How **docker-dev** images and the **`cdev`** CLI fit together. Facts below are d
 
 | Path | Role |
 |------|------|
-| `u2204dev/`, `u2404dev/`, `u2604dev/` | Thin Dockerfiles + per-image `starship.toml`, `.vimrc`, themes (`u2604dev/Dockerfile:1-31`) |
-| `common/` | Shared install steps: base packages, Python, uv, gh, Docker CLI, AI tools, entrypoint (`common/dev-image-base.sh`) |
+| `u2204dev/`, `u2404dev/`, `u2604dev/` | Ubuntu Dockerfiles + per-image `starship.toml`, `.vimrc`, themes (`u2604dev/Dockerfile:1-31`) |
+| `devbox/` | Lean Debian 13 Dockerfile for sandboxed OpenCode tasks (`devbox/Dockerfile`) |
+| `common/` | Shared Ubuntu install steps plus reusable Python, user, AI-tool, and entrypoint scripts (`common/`) |
 | `cli/` | `cdev` launcher (`install.sh:38-43`, `cli/README.md`) |
 | `scripts/` | Pre-commit pipeline (`scripts/pre-commit.sh:4-23`), validation helpers |
-| `.github/workflows/build-images.yml` | Multi-profile GHCR publish for the three `u*dev` images |
+| `.github/workflows/build-images.yml` | Multi-profile GHCR publish for the four first-class images |
 
-Deprecated: `u2604dev-opencode/` — local optional tag only; not in CI matrix (`u2604dev-opencode/README.md:3-4`, `.github/workflows/build-images.yml:60-72`).
+Deprecated: `u2604dev-opencode/` — local optional tag only; not in CI matrix (`u2604dev-opencode/README.md:3-4`).
 
 ## Image build pipeline
+
+The Ubuntu images use the full shared base installer. `devbox` uses
+`common/install-devbox-base.sh` for a smaller Debian package set, then reuses
+the shared AI profile, user-finalization, and runtime entrypoint steps.
 
 ```mermaid
 flowchart LR
@@ -25,11 +30,11 @@ flowchart LR
   AI --> EP[entrypoint-dev.sh]
 ```
 
-1. **Python** — version-specific via `UBUNTU_VERSION` (`common/install-python.sh:11-33`, `u2604dev/Dockerfile:7-22`).
-2. **Base** — apt CLI stack, Node LTS + Corepack, Oh My Zsh, Starship, vim-plug, **Docker CLI client** (`common/dev-image-base.sh:15-78`, `common/install-docker-cli.sh:6-15`).
+1. **Python** — Ubuntu images use `UBUNTU_VERSION` (`common/install-python.sh:11-33`, `u2604dev/Dockerfile:7-22`); `devbox` installs Debian's Python 3.13 packages (`common/install-devbox-base.sh`).
+2. **Base** — Ubuntu images use the full apt CLI stack, Node LTS + Corepack, Oh My Zsh, Starship, vim-plug, fonts, GitHub CLI, and **Docker CLI client** (`common/dev-image-base.sh:15-78`, `common/install-docker-cli.sh:6-15`); `devbox` uses a lean Debian package set.
 3. **Finalize** — optional non-root `dev` user when `DEV_CREATE_NONROOT_USER=1` (`common/setup-dev-user.sh:3-7`, `u2604dev/Dockerfile:16-25`).
-4. **AI profile** — `DEV_IMAGE_PROFILE` controls global npm AI CLIs (`common/install-ai-tools.sh:3-24`, `common/install-ai-tools.sh:45-50`).
-5. **Runtime** — default entrypoint (`u2604dev/Dockerfile:38-39`).
+4. **AI profile** — `DEV_IMAGE_PROFILE` controls global npm AI CLIs at `@latest` (`common/install-ai-tools.sh:18-44`). Every profile copies `update-ai-tools` to `/usr/local/bin`. `standard`/`ai-full` also install `asm` and bake `luongnv89/idd` + `luongnv89/skills`.
+5. **Runtime** — default entrypoint (`u2604dev/Dockerfile:40-41`, `devbox/Dockerfile`).
 
 Build context is always the **repository root** (`.`); not the per-image directory alone.
 
@@ -37,11 +42,11 @@ Build context is always the **repository root** (`.`); not the per-image directo
 
 | Profile | AI npm globals | GHCR tag suffix |
 |---------|----------------|-----------------|
-| `ai-full` (default) | Claude Code, Codex, OpenCode, Pi, warp plugin, herdr path in ai-full branch | `:latest` (`cli/lib/profiles.sh:17-24`, `.github/workflows/build-images.yml:130-132`) |
-| `standard` | OpenCode, Pi | `:latest-standard` |
+| `ai-full` (default) | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, idd + skills | `:latest` (`cli/lib/profiles.sh:17-24`, `.github/workflows/build-images.yml:130-132`) |
+| `standard` | OpenCode, Pi, asm, idd + skills | `:latest-standard` |
 | `minimal` | none | `:latest-minimal` |
 
-CI builds all three profiles per image (`.github/workflows/build-images.yml:88-89`). Local/`cdev` defaults match `ai-full` (`cli/lib/profiles.sh:5`, `cli/lib/build.sh:52-53`).
+CI builds all three profiles per image (`.github/workflows/build-images.yml:88-89`). Local/`cdev` defaults are `ai-full` for Ubuntu images and `standard` for `devbox` (`cli/lib/profiles.sh`, `cli/lib/build.sh`, `cli/lib/run.sh`).
 
 ## `cdev` vs plain `docker run`
 
@@ -51,8 +56,8 @@ CI builds all three profiles per image (`.github/workflows/build-images.yml:88-8
 
 ## CI gates
 
-- **Change detection** — `u2204dev`, `u2404dev`, `u2604dev` only (`.github/workflows/build-images.yml:57-72`).
-- **npm audit** — pinned AI globals (`scripts/verify-ai-globals-audit.sh`, workflow job `npm-audit-ai-globals`).
+- **Change detection** — `u2204dev`, `u2404dev`, `u2604dev`, and `devbox` (`.github/workflows/build-images.yml`).
+- **npm audit** — latest AI globals (`scripts/verify-ai-globals-audit.sh`, workflow job `npm-audit-ai-globals`).
 - **Build** — `AI_VERIFY_MODE=strict` in CI (`.github/workflows/build-images.yml:145-146`, `CONTRIBUTING.md` verify modes).
 - **Trivy / attestation** — `ai-full` pushes on `main` only (`.github/workflows/build-images.yml:156-174`).
 

@@ -25,9 +25,11 @@ RUN chmod +x /opt/common/*.sh && \
       bash /opt/common/finalize-dev-image.sh
 
 # AI npm layer — changes here do not invalidate apt/base layers above.
-COPY common/install-ai-tools.sh /opt/common/install-ai-tools.sh
+COPY common/install-ai-tools.sh common/update-ai-tools.sh /opt/common/
 ARG AI_VERIFY_MODE=lenient
-RUN chmod +x /opt/common/install-ai-tools.sh && \
+ARG AI_TOOLS_CACHEBUST=0
+RUN chmod +x /opt/common/install-ai-tools.sh /opt/common/update-ai-tools.sh && \
+    echo "AI_TOOLS_CACHEBUST=${AI_TOOLS_CACHEBUST}" && \
     DEV_IMAGE_PROFILE="${DEV_IMAGE_PROFILE}" AI_VERIFY_MODE="${AI_VERIFY_MODE}" \
       bash /opt/common/install-ai-tools.sh
 

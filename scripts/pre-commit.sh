@@ -17,9 +17,9 @@ run_step() {
     echo
 }
 
-run_step "Format"   "$TASK_DIR/format.sh"
-run_step "Lint"     "$TASK_DIR/lint.sh"
-run_step "Test"     "$TASK_DIR/test.sh"
-run_step "Cleanup"  "$TASK_DIR/cleanup.sh"
+run_step "Format" "$TASK_DIR/format.sh"
+run_step "Lint" "$TASK_DIR/lint.sh"
+run_step "Test" "$TASK_DIR/test.sh"
+run_step "Cleanup" "$TASK_DIR/cleanup.sh"
 
 echo "All pre-commit checks passed."

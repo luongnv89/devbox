@@ -64,6 +64,9 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
 - **Claude Code** and **Codex** (npm globals; use `cdev run --mount-claude` / `--mount-codex` for host login state)
 - **pi-extensions** from [`luongnv89/pi-extensions`](https://github.com/luongnv89/pi-extensions) (opencode-pi, statusline-pi, themes)
 - **[herdr](https://herdr.dev/)** — herd manager for dev tools (`/usr/local/bin/herdr`)
+- **[asm](https://github.com/luongnv89/agent-skill-manager)** (`agent-skill-manager`) plus baked skills from [`luongnv89/idd`](https://github.com/luongnv89/idd) and [`luongnv89/skills`](https://github.com/luongnv89/skills) in `~/.agents/skills`
+
+CLIs install at npm `@latest` at image build. In a running container, run `update-ai-tools` (root or sudo) to upgrade the same set (including `asm` skill repos) and silence in-app update nags.
 
 Build from repo root:
 

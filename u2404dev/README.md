@@ -60,7 +60,7 @@ docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2404dev:latest zsh
 
 ### AI / coding agents (baked in)
 
-Same stack as other `*dev` images — see [`common/install-ai-tools.sh`](../../common/install-ai-tools.sh) and [u2604dev](../u2604dev/README.md#ai--coding-agents-baked-in) for the full list (OpenCode, Pi, Claude Code, Codex, pi-extensions, herdr). Use `cdev run` mount flags for host config.
+Same stack as other `*dev` images — see [`common/install-ai-tools.sh`](../../common/install-ai-tools.sh) and [u2604dev](../u2604dev/README.md#ai--coding-agents-baked-in) for the full list (OpenCode, Pi, Claude Code, Codex, pi-extensions, herdr, asm, idd + skills). Use `cdev run` mount flags for host config. In a running container, `update-ai-tools` upgrades those CLIs to latest.
 
 ### Other Features
 

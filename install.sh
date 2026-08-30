@@ -12,96 +12,96 @@ REPO_DIR="${SHARE_DIR}/repo"
 CLI_NAME="${CDEV_CLI_NAME:-cdev}"
 
 die() {
-  echo "✗ $*" >&2
-  exit 1
+    echo "✗ $*" >&2
+    exit 1
 }
 
 need_cmd() {
-  command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
+    command -v "$1" >/dev/null 2>&1 || die "Missing required command: $1"
 }
 
 ensure_cli_in_repo() {
-  local repo="$1"
-  [ -f "${repo}/cli/bin/cdev" ] \
-    || die "cli/bin/cdev not found in ${repo} (ref ${REF}). Merge to main or set DOCKER_DEV_INSTALL_REF."
+    local repo="$1"
+    [ -f "${repo}/cli/bin/cdev" ] ||
+        die "cli/bin/cdev not found in ${repo} (ref ${REF}). Merge to main or set DOCKER_DEV_INSTALL_REF."
 }
 
 install_from_repo() {
-  local repo="$1"
-  ensure_cli_in_repo "${repo}"
+    local repo="$1"
+    ensure_cli_in_repo "${repo}"
 
-  echo "● Installing cdev CLI to ${CLI_DIR}..."
-  rm -rf "${CLI_DIR}"
-  cp -R "${repo}/cli" "${CLI_DIR}"
-  chmod +x "${CLI_DIR}/bin/cdev"
+    echo "● Installing cdev CLI to ${CLI_DIR}..."
+    rm -rf "${CLI_DIR}"
+    cp -R "${repo}/cli" "${CLI_DIR}"
+    chmod +x "${CLI_DIR}/bin/cdev"
 
-  cat > "${BIN_DIR}/${CLI_NAME}" <<WRAP
+    cat >"${BIN_DIR}/${CLI_NAME}" <<WRAP
 #!/usr/bin/env bash
 export DOCKER_DEV_REPO="${repo}"
 exec "${CLI_DIR}/bin/cdev" "\$@"
 WRAP
-  chmod +x "${BIN_DIR}/${CLI_NAME}"
+    chmod +x "${BIN_DIR}/${CLI_NAME}"
 
-  if [ "${CLI_NAME}" != "docker-dev" ] && [ ! -e "${BIN_DIR}/docker-dev" ]; then
-    ln -sf "${CLI_NAME}" "${BIN_DIR}/docker-dev" 2>/dev/null || true
-  fi
+    if [ "${CLI_NAME}" != "docker-dev" ] && [ ! -e "${BIN_DIR}/docker-dev" ]; then
+        ln -sf "${CLI_NAME}" "${BIN_DIR}/docker-dev" 2>/dev/null || true
+    fi
 }
 
 main() {
-  need_cmd mkdir
-  mkdir -p "${BIN_DIR}" "${SHARE_DIR}"
+    need_cmd mkdir
+    mkdir -p "${BIN_DIR}" "${SHARE_DIR}"
 
-  local install_script="${BASH_SOURCE[0]:-}"
-  if [ -n "${install_script}" ] && [ -f "${install_script}" ]; then
-    local checkout_root
-    checkout_root="$(cd "$(dirname "${install_script}")" && pwd)"
-    if [ -f "${checkout_root}/cli/bin/cdev" ]; then
-      echo "● Installing from local checkout: ${checkout_root}"
-      install_from_repo "${checkout_root}"
-      print_success "${checkout_root}"
-      return 0
+    local install_script="${BASH_SOURCE[0]:-}"
+    if [ -n "${install_script}" ] && [ -f "${install_script}" ]; then
+        local checkout_root
+        checkout_root="$(cd "$(dirname "${install_script}")" && pwd)"
+        if [ -f "${checkout_root}/cli/bin/cdev" ]; then
+            echo "● Installing from local checkout: ${checkout_root}"
+            install_from_repo "${checkout_root}"
+            print_success "${checkout_root}"
+            return 0
+        fi
     fi
-  fi
 
-  need_cmd git
+    need_cmd git
 
-  if [ -d "${REPO_DIR}/.git" ]; then
-    echo "● Updating docker-dev repository (ref=${REF})..."
-    git -C "${REPO_DIR}" fetch origin "${REF}" 2>/dev/null || git -C "${REPO_DIR}" fetch origin
-    git -C "${REPO_DIR}" checkout "${REF}" 2>/dev/null || true
-    git -C "${REPO_DIR}" pull --ff-only origin "${REF}" 2>/dev/null || true
-  else
-    echo "● Cloning docker-dev (shallow, ref=${REF})..."
-    rm -rf "${REPO_DIR}"
-    if ! git clone --depth 1 --branch "${REF}" "${REPO_URL}" "${REPO_DIR}" 2>/dev/null; then
-      echo "● Shallow clone of branch ${REF} failed; cloning default branch..."
-      git clone --depth 1 "${REPO_URL}" "${REPO_DIR}" || die "Clone failed. Check network and REPO_URL=${REPO_URL}"
-      git -C "${REPO_DIR}" checkout "${REF}" 2>/dev/null || true
+    if [ -d "${REPO_DIR}/.git" ]; then
+        echo "● Updating docker-dev repository (ref=${REF})..."
+        git -C "${REPO_DIR}" fetch origin "${REF}" 2>/dev/null || git -C "${REPO_DIR}" fetch origin
+        git -C "${REPO_DIR}" checkout "${REF}" 2>/dev/null || true
+        git -C "${REPO_DIR}" pull --ff-only origin "${REF}" 2>/dev/null || true
+    else
+        echo "● Cloning docker-dev (shallow, ref=${REF})..."
+        rm -rf "${REPO_DIR}"
+        if ! git clone --depth 1 --branch "${REF}" "${REPO_URL}" "${REPO_DIR}" 2>/dev/null; then
+            echo "● Shallow clone of branch ${REF} failed; cloning default branch..."
+            git clone --depth 1 "${REPO_URL}" "${REPO_DIR}" || die "Clone failed. Check network and REPO_URL=${REPO_URL}"
+            git -C "${REPO_DIR}" checkout "${REF}" 2>/dev/null || true
+        fi
     fi
-  fi
 
-  install_from_repo "${REPO_DIR}"
-  print_success "${REPO_DIR}"
+    install_from_repo "${REPO_DIR}"
+    print_success "${REPO_DIR}"
 }
 
 print_success() {
-  local repo="$1"
-  echo ""
-  echo "✓ ${CLI_NAME} installed"
-  echo "  Binary:  ${BIN_DIR}/${CLI_NAME}"
-  echo "  Repo:    ${repo}"
-  echo ""
-  if ! command -v "${CLI_NAME}" >/dev/null 2>&1; then
-    echo "  Add to PATH:"
-    echo "    export PATH=\"${BIN_DIR}:\$PATH\""
+    local repo="$1"
     echo ""
-  fi
-  echo "  Try:"
-  echo "    ${CLI_NAME} --version"
-  echo "    ${CLI_NAME} list"
-  echo "    ${CLI_NAME} run --help"
-  echo ""
-  echo "  herdr is baked into dev images (run a container, then: herdr)"
+    echo "✓ ${CLI_NAME} installed"
+    echo "  Binary:  ${BIN_DIR}/${CLI_NAME}"
+    echo "  Repo:    ${repo}"
+    echo ""
+    if ! command -v "${CLI_NAME}" >/dev/null 2>&1; then
+        echo "  Add to PATH:"
+        echo "    export PATH=\"${BIN_DIR}:\$PATH\""
+        echo ""
+    fi
+    echo "  Try:"
+    echo "    ${CLI_NAME} --version"
+    echo "    ${CLI_NAME} list"
+    echo "    ${CLI_NAME} run --help"
+    echo ""
+    echo "  herdr is baked into dev images (run a container, then: herdr)"
 }
 
 main "$@"

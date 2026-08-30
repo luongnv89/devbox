@@ -1,23 +1,38 @@
 #!/usr/bin/env bash
-# run_opencode.sh — run OpenCode non-interactively, sandboxed in a disposable
-# luongnv89/docker-dev container. One process, one exit code: no TUI to drive,
-# no readiness timing, no permission dialogs to click through.
+# run_opencode.sh — run OpenCode non-interactively, sandboxed in a
+# luongnv89/docker-dev container. The container is kept by default so you can
+# attach a shell; pass --rm to restore auto-remove.
+#
+# Agents: use two invocations so the user sees the attach command before
+# OpenCode blocks — --start-only, then --exec-in NAME with --message.
+# A single --project + --message invocation still works (start then exec).
 #
 # Usage:
-#   run_opencode.sh --project DIR --message "task text" [options]
+#   run_opencode.sh --project DIR --start-only [options]
+#   run_opencode.sh --project DIR --message "task" --exec-in NAME [options]
+#   run_opencode.sh --project DIR --message "task" [options]
 #
 # Required:
 #   --project DIR          local directory to mount read-write at /workspace
 #   --message TEXT          prompt text passed to `opencode run`
+#                           (not required with --start-only)
 #
 # Optional:
-#   --file PATH              host file to attach (mounted read-only, passed via opencode --file).
+#   --file PATH              host file to copy to /scratch inside the
+#                             container, passed via opencode --file.
 #                             For long/complex tasks: write them to a file, pass --file, and give
 #                             a short --message like "Follow the attached file's instructions exactly."
 #   --with-claude-skills      mount ~/.claude (and ~/.agents, for symlinked skills) read-only
 #   --with-git-identity       mount ~/.gitconfig read-only, for correct commit authorship
-#   --image IMAGE             docker image (default: ghcr.io/luongnv89/u2604dev:latest)
+#   --image IMAGE             docker image (default: ghcr.io/luongnv89/devbox:latest-standard)
 #   --format FORMAT           opencode output format: default | json (default: default)
+#   --model MODEL             opencode model to use (e.g. opencode/muse-spark-1.2-contributor-free)
+#   --name NAME               container name (default: opencode-dev-<project>-<epoch>)
+#   --start-only              create the keep-alive container, print the attach
+#                             command, exit 0 (does not run OpenCode)
+#   --exec-in NAME            run OpenCode in an already-started container
+#   --rm                      remove the container when this script exits (opt-in;
+#                             default is to keep it running so you can attach)
 #
 # Never mounts ~/.ssh or injects a GH token/GH_TOKEN — see
 # references/mounts-and-credentials.md for why, and what to do if a task
@@ -27,155 +42,348 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
-  grep '^#' "${BASH_SOURCE[0]}" | sed -e '1d' -e 's/^# \{0,1\}//'
+    grep '^#' "${BASH_SOURCE[0]}" | sed -e '1d' -e 's/^# \{0,1\}//'
 }
 
-IMAGE="ghcr.io/luongnv89/u2604dev:latest"
+IMAGE="ghcr.io/luongnv89/devbox:latest-standard"
 FORMAT="default"
+MODEL=""
 PROJECT_DIR=""
 MESSAGE=""
 TASK_FILE=""
 WITH_CLAUDE_SKILLS=0
 WITH_GIT_IDENTITY=0
-OPENCODE_MOUNTED=0
+CONTAINER_NAME=""
+CONTAINER_ID=""
+REMOVE_ON_EXIT=0
+RAN_OPENCODE=0
+START_ONLY=0
+EXEC_IN=""
+START_COMMAND=(sleep infinity)
+CONFIG_BOOTSTRAP_REQUIRED=0
+CONFIG_SNAPSHOT_MARKER="/root/.config/.docker-dev-opencode-config-copied"
 
 while [ $# -gt 0 ]; do
-  case "$1" in
-    --project|--message|--file|--image|--format)
-      # A value-flag with nothing after it (e.g. a trailing `--message` with
-      # no text) would make `shift 2` fail with bash's bare, unhelpful
-      # "shift count out of range" — or under `set -e`, exit silently with no
-      # message at all. Catch it here with a specific, actionable error.
-      if [ $# -lt 2 ]; then
-        echo "Error: '$1' requires a value but none was given. Run with --help for usage." >&2
+    case "$1" in
+    --project | --message | --file | --image | --format | --model | --name | --exec-in)
+        if [ $# -lt 2 ]; then
+            echo "Error: '$1' requires a value but none was given. Run with --help for usage." >&2
+            exit 1
+        fi
+        ;;
+    esac
+    case "$1" in
+    --project)
+        PROJECT_DIR="$2"
+        shift 2
+        ;;
+    --message)
+        MESSAGE="$2"
+        shift 2
+        ;;
+    --file)
+        TASK_FILE="$2"
+        shift 2
+        ;;
+    --with-claude-skills)
+        WITH_CLAUDE_SKILLS=1
+        shift
+        ;;
+    --with-git-identity)
+        WITH_GIT_IDENTITY=1
+        shift
+        ;;
+    --image)
+        IMAGE="$2"
+        shift 2
+        ;;
+    --format)
+        FORMAT="$2"
+        shift 2
+        ;;
+    --model)
+        MODEL="$2"
+        shift 2
+        ;;
+    --name)
+        CONTAINER_NAME="$2"
+        shift 2
+        ;;
+    --start-only)
+        START_ONLY=1
+        shift
+        ;;
+    --exec-in)
+        EXEC_IN="$2"
+        shift 2
+        ;;
+    --rm)
+        REMOVE_ON_EXIT=1
+        shift
+        ;;
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    *)
+        echo "Error: unknown argument '$1'. Run with --help for usage." >&2
         exit 1
-      fi
-      ;;
-  esac
-  case "$1" in
-    --project) PROJECT_DIR="$2"; shift 2 ;;
-    --message) MESSAGE="$2"; shift 2 ;;
-    --file) TASK_FILE="$2"; shift 2 ;;
-    --with-claude-skills) WITH_CLAUDE_SKILLS=1; shift ;;
-    --with-git-identity) WITH_GIT_IDENTITY=1; shift ;;
-    --image) IMAGE="$2"; shift 2 ;;
-    --format) FORMAT="$2"; shift 2 ;;
-    -h|--help) usage; exit 0 ;;
-    *) echo "Error: unknown argument '$1'. Run with --help for usage." >&2; exit 1 ;;
-  esac
+        ;;
+    esac
 done
 
 if [ -z "$PROJECT_DIR" ]; then
-  echo "Error: --project DIR is required (the local project directory to mount at /workspace)." >&2
-  exit 1
+    echo "Error: --project DIR is required (the local project directory to mount at /workspace)." >&2
+    exit 1
 fi
 if [ ! -e "$PROJECT_DIR" ]; then
-  echo "Error: project directory '$PROJECT_DIR' does not exist." >&2
-  exit 1
+    echo "Error: project directory '$PROJECT_DIR' does not exist." >&2
+    exit 1
 fi
 if [ ! -d "$PROJECT_DIR" ]; then
-  echo "Error: project directory '$PROJECT_DIR' exists but is not a directory." >&2
-  exit 1
+    echo "Error: project directory '$PROJECT_DIR' exists but is not a directory." >&2
+    exit 1
 fi
-if [ -z "$MESSAGE" ]; then
-  echo "Error: --message TEXT is required (the prompt to send to OpenCode). For long/complex tasks, write them to a file and pass --file plus a short --message like \"Follow the attached file's instructions exactly.\"" >&2
-  exit 1
+if [ "$START_ONLY" = "1" ] && [ -n "$EXEC_IN" ]; then
+    echo "Error: pass either --start-only or --exec-in NAME, not both." >&2
+    exit 1
+fi
+if [ "$START_ONLY" = "1" ] && [ "$REMOVE_ON_EXIT" = "1" ]; then
+    echo "Error: --rm cannot be combined with --start-only (the container would be deleted before OpenCode runs). Pass --rm on the --exec-in invocation instead." >&2
+    exit 1
+fi
+if [ "$START_ONLY" != "1" ] && [ -z "$MESSAGE" ]; then
+    echo "Error: --message TEXT is required (the prompt to send to OpenCode). For long/complex tasks, write them to a file and pass --file plus a short --message like \"Follow the attached file's instructions exactly.\"" >&2
+    exit 1
 fi
 if [ -n "$TASK_FILE" ] && [ ! -f "$TASK_FILE" ]; then
-  echo "Error: --file path '$TASK_FILE' does not exist." >&2
-  exit 1
+    echo "Error: --file path '$TASK_FILE' does not exist." >&2
+    exit 1
 fi
 case "$FORMAT" in
-  default|json) ;;
-  *) echo "Error: --format must be 'default' or 'json', got '$FORMAT'." >&2; exit 1 ;;
+default | json) ;;
+*)
+    echo "Error: --format must be 'default' or 'json', got '$FORMAT'." >&2
+    exit 1
+    ;;
 esac
 
 PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
 
+if [ -n "$EXEC_IN" ]; then
+    CONTAINER_NAME="$EXEC_IN"
+fi
+
+if [ -z "$CONTAINER_NAME" ]; then
+    slug="$(basename -- "$PROJECT_DIR" | tr -cd 'a-zA-Z0-9._-' | tr '[:upper:]' '[:lower:]')"
+    if [ -z "$slug" ]; then
+        slug="project"
+    fi
+    case "$slug" in
+    [a-zA-Z0-9]*) ;;
+    *) slug="p${slug}" ;;
+    esac
+    CONTAINER_NAME="opencode-dev-${slug}-$(date +%s)"
+fi
+
 bash "$SCRIPT_DIR/preflight.sh" "$IMAGE"
 
-MOUNTS=(-v "${PROJECT_DIR}:/workspace")
+print_attach_block() {
+    cat >&2 <<EOF
 
-# Track whether we need to override the entrypoint for opencode init.
-ENTRYPOINT_ARGS=()
+CONTAINER_NAME=${CONTAINER_NAME}
 
-if [ -d "$HOME/.config/opencode" ]; then
-  # Mount host config read-only at a separate path, then copy into a writable
-  # named volume at startup. This keeps usage tracking isolated from the host
-  # while giving the container your full config.
-  MOUNTS+=(-v "$HOME/.config/opencode:/root/.config/opencode-host:ro")
-  MOUNTS+=(-v "opencode-config:/root/.config/opencode")
-  OPENCODE_MOUNTED=1
-else
-  echo "Warning: $HOME/.config/opencode not found — the container will have no OpenCode auth/config and may prompt to log in. Run 'opencode' once on the host first if this task needs a real provider." >&2
-fi
+Attach (copy-paste into another terminal):
 
-if [ "$WITH_CLAUDE_SKILLS" = "1" ]; then
-  if [ -d "$HOME/.claude" ]; then
-    MOUNTS+=(-v "$HOME/.claude:/root/.claude:ro")
-    # ~/.claude/skills/<name> is frequently a symlink to ~/.agents/skills/<name>.
-    # Mounting ~/.claude alone leaves that symlink dangling inside the
-    # container (ls shows the entry, but reading the file 404s) — mount
-    # ~/.agents too whenever it exists so skill files actually resolve.
-    if [ -d "$HOME/.agents" ]; then
-      MOUNTS+=(-v "$HOME/.agents:/root/.agents:ro")
+  docker exec -it ${CONTAINER_NAME} zsh
+
+EOF
+}
+
+ensure_running() {
+    local state
+    if ! docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+        echo "Error: container '$CONTAINER_NAME' does not exist." >&2
+        echo "Fix: start a new one with --start-only, or pass a name from 'docker ps -a --filter label=opencode-docker-dev=1'." >&2
+        exit 1
     fi
-  else
-    echo "Warning: --with-claude-skills was requested but $HOME/.claude does not exist; skipping." >&2
-  fi
-fi
+    CONTAINER_ID="$(docker inspect -f '{{.Id}}' "$CONTAINER_NAME")"
+    local config_mount
+    config_mount="$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/root/.config/opencode"}}{{.Type}}:{{.RW}}{{end}}{{end}}' "$CONTAINER_NAME")"
+    if [ "$config_mount" = "bind:true" ]; then
+        echo "Error: container '$CONTAINER_NAME' uses a writable host bind at /root/.config/opencode." >&2
+        echo "Fix: do not reuse it with --exec-in; recreate it only after the user confirms removing the container." >&2
+        exit 1
+    fi
+    state="$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")"
+    if [ "$state" = "true" ]; then
+        return 0
+    fi
+    echo "Container '$CONTAINER_NAME' exists but is not running. Starting it..." >&2
+    if ! docker start "$CONTAINER_NAME" >/dev/null; then
+        echo "Error: 'docker start $CONTAINER_NAME' failed. Inspect with: docker logs '$CONTAINER_NAME'" >&2
+        exit 1
+    fi
+    if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")" != "true" ]; then
+        echo "Error: container '$CONTAINER_NAME' did not stay running after docker start. Inspect with: docker logs '$CONTAINER_NAME'" >&2
+        exit 1
+    fi
+}
 
-if [ "$WITH_GIT_IDENTITY" = "1" ]; then
-  if [ -f "$HOME/.gitconfig" ]; then
-    MOUNTS+=(-v "$HOME/.gitconfig:/root/.gitconfig:ro")
-  else
-    echo "Warning: --with-git-identity was requested but $HOME/.gitconfig does not exist; skipping." >&2
-  fi
-fi
+run_opencode_in_container() {
+    local oc_ec=0
+    local opencode_args=(run "$MESSAGE")
+    RAN_OPENCODE=1
+    if [ -n "$TASK_FILE" ]; then
+        local basename
+        basename="$(basename -- "$TASK_FILE")"
+        if ! docker exec "$CONTAINER_NAME" mkdir -p /scratch; then
+            echo "Error: could not create /scratch inside container '$CONTAINER_NAME'." >&2
+            exit 1
+        fi
+        if ! docker cp "$TASK_FILE" "$CONTAINER_NAME:/scratch/$basename"; then
+            echo "Error: 'docker cp' failed to copy '$TASK_FILE' into the container." >&2
+            exit 1
+        fi
+        opencode_args+=("--file=/scratch/$basename")
+    fi
+    opencode_args+=(--auto --format "$FORMAT")
+    if [ -n "$MODEL" ]; then
+        opencode_args+=(--model "$MODEL")
+    fi
+    set +e
+    docker exec -w /workspace "$CONTAINER_NAME" opencode "${opencode_args[@]}"
+    oc_ec=$?
+    set -e
+    if [ "$REMOVE_ON_EXIT" != "1" ]; then
+        echo "Container kept: $CONTAINER_NAME (still running)." >&2
+        echo "Ask the user before removing it. If they confirm: docker rm -fv ${CONTAINER_NAME}" >&2
+    fi
+    exit "$oc_ec"
+}
 
-OPENCODE_ARGS=(run "$MESSAGE")
+remove_container_and_config() {
+    # -v removes the anonymous OpenCode config volume along with the container.
+    # This matters because it contains a copied snapshot of host credentials.
+    # Use the inspected ID, never a name, so a concurrent name collision cannot
+    # cause cleanup to remove an unrelated container.
+    if [ -n "$CONTAINER_ID" ]; then
+        docker rm -fv "$CONTAINER_ID" >/dev/null 2>&1 || true
+    fi
+}
 
-SCRATCH_DIR=""
 cleanup() {
-  # NOTE: must be an `if`, not `[ -n "$SCRATCH_DIR" ] && rm ...` — under
-  # `set -e`, a falsy short-circuit as the last command of an EXIT trap
-  # clobbers the script's real exit status to 1, even on success.
-  if [ -n "$SCRATCH_DIR" ]; then
-    rm -rf "$SCRATCH_DIR"
-  fi
+    if [ "$REMOVE_ON_EXIT" = "1" ] && [ "$RAN_OPENCODE" = "1" ]; then
+        remove_container_and_config
+    fi
 }
 trap cleanup EXIT
 
-if [ -n "$TASK_FILE" ]; then
-  SCRATCH_DIR="$(mktemp -d)"
-  BASENAME="$(basename -- "$TASK_FILE")"
-  cp "$TASK_FILE" "$SCRATCH_DIR/$BASENAME"
-  MOUNTS+=(-v "${SCRATCH_DIR}:/scratch:ro")
-  OPENCODE_ARGS+=("--file=/scratch/$BASENAME")
+# --- --exec-in: OpenCode in an already-created container -----------------
+if [ -n "$EXEC_IN" ]; then
+    ensure_running
+    print_attach_block
+    run_opencode_in_container
 fi
 
-OPENCODE_ARGS+=(--auto --format "$FORMAT")
-
-# If opencode config is mounted, override entrypoint to copy host config into
-# the writable named volume before running opencode.
-if [ "$OPENCODE_MOUNTED" -eq 1 ]; then
-  ENTRYPOINT_ARGS=(--entrypoint sh -c "[ -z \"\$(ls -A /root/.config/opencode 2>/dev/null)\" ] && cp -a /root/.config/opencode-host/. /root/.config/opencode/ 2>/dev/null || true; exec opencode ${OPENCODE_ARGS[*]}")
+# --- create a new keep-alive container -----------------------------------
+if docker container inspect "$CONTAINER_NAME" >/dev/null 2>&1; then
+    echo "Error: a container named '$CONTAINER_NAME' already exists (name collision)." >&2
+    echo "Fix: pass --name with a unique value (e.g. a timestamp suffix), or --exec-in '$CONTAINER_NAME' to reuse it." >&2
+    echo "Remove it only if the user confirms destroying the kept container: docker rm -fv '$CONTAINER_NAME'" >&2
+    exit 1
 fi
 
-echo "Running OpenCode in a disposable container (image: $IMAGE, workspace: $PROJECT_DIR)..." >&2
+MOUNTS=(-v "${PROJECT_DIR}:/workspace")
 
-if [ "$OPENCODE_MOUNTED" -eq 1 ]; then
-  # Override entrypoint: copy host config to writable volume, then run opencode.
-  docker run --rm \
-    "${MOUNTS[@]}" \
-    -w /workspace \
-    --entrypoint sh \
-    -c "[ -z \"\$(ls -A /root/.config/opencode 2>/dev/null)\" ] && cp -a /root/.config/opencode-host/. /root/.config/opencode/ 2>/dev/null || true; exec opencode ${OPENCODE_ARGS[*]}" \
-    "$IMAGE"
+if [ -d "$HOME/.config/opencode" ]; then
+    # Never expose the host's mutable config/state directly. The anonymous
+    # volume receives the image's bundled contents first, then this bootstrap
+    # command overlays a read-only snapshot of the host config exactly once.
+    MOUNTS+=(--mount "type=bind,src=$HOME/.config/opencode,dst=/root/.config/opencode-host,readonly")
+    MOUNTS+=(--mount "type=volume,dst=/root/.config/opencode")
+    CONFIG_BOOTSTRAP_REQUIRED=1
+    START_COMMAND=(
+        sh
+        -c
+        'set -eu
+marker=/root/.config/.docker-dev-opencode-config-copied
+if [ ! -e "$marker" ]; then
+  cp -a /root/.config/opencode-host/. /root/.config/opencode/
+  touch "$marker"
+fi
+exec sleep infinity'
+    )
 else
-  docker run --rm \
+    echo "Warning: $HOME/.config/opencode not found — the container will have no OpenCode auth/config and may prompt to log in. Run 'opencode' once on the host first if this task needs a real provider." >&2
+fi
+
+if [ "$WITH_CLAUDE_SKILLS" = "1" ]; then
+    if [ -d "$HOME/.claude" ]; then
+        MOUNTS+=(-v "$HOME/.claude:/root/.claude:ro")
+        # ~/.claude/skills/<name> is frequently a symlink to ~/.agents/skills/<name>.
+        # Mounting ~/.claude alone leaves that symlink dangling inside the
+        # container (ls shows the entry, but reading the file 404s) — mount
+        # ~/.agents too whenever it exists so skill files actually resolve.
+        if [ -d "$HOME/.agents" ]; then
+            MOUNTS+=(-v "$HOME/.agents:/root/.agents:ro")
+        fi
+    else
+        echo "Warning: --with-claude-skills was requested but $HOME/.claude does not exist; skipping." >&2
+    fi
+fi
+
+if [ "$WITH_GIT_IDENTITY" = "1" ]; then
+    if [ -f "$HOME/.gitconfig" ]; then
+        MOUNTS+=(-v "$HOME/.gitconfig:/root/.gitconfig:ro")
+    else
+        echo "Warning: --with-git-identity was requested but $HOME/.gitconfig does not exist; skipping." >&2
+    fi
+fi
+
+echo "Starting OpenCode container (image: $IMAGE, workspace: $PROJECT_DIR, name: $CONTAINER_NAME)..." >&2
+
+if ! CONTAINER_ID="$(docker run -d \
+    --name "$CONTAINER_NAME" \
+    --label opencode-docker-dev=1 \
     "${MOUNTS[@]}" \
     -w /workspace \
     "$IMAGE" \
-    opencode "${OPENCODE_ARGS[@]}"
+    "${START_COMMAND[@]}")"; then
+    echo "Error: 'docker run' failed to start container '$CONTAINER_NAME'. See the docker error above." >&2
+    exit 1
 fi
+if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_ID" 2>/dev/null || true)" != "true" ]; then
+    echo "Error: container '$CONTAINER_NAME' was created but is not running. Inspect with: docker logs '$CONTAINER_ID'" >&2
+    remove_container_and_config
+    exit 1
+fi
+
+if [ "$CONFIG_BOOTSTRAP_REQUIRED" = "1" ]; then
+    snapshot_ready=0
+    for _ in $(seq 1 100); do
+        if [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_ID" 2>/dev/null || true)" != "true" ]; then
+            break
+        fi
+        if docker exec "$CONTAINER_NAME" test -f "$CONFIG_SNAPSHOT_MARKER" >/dev/null 2>&1; then
+            snapshot_ready=1
+            break
+        fi
+        sleep 0.1
+    done
+    if [ "$snapshot_ready" != "1" ]; then
+        echo "Error: container '$CONTAINER_NAME' failed to snapshot OpenCode config. Inspecting logs before cleanup:" >&2
+        docker logs "$CONTAINER_ID" >&2 || true
+        remove_container_and_config
+        exit 1
+    fi
+fi
+
+print_attach_block
+
+if [ "$START_ONLY" = "1" ]; then
+    echo "Container started. Run OpenCode next with: --exec-in $CONTAINER_NAME --project '$PROJECT_DIR' --message \"...\"" >&2
+    exit 0
+fi
+
+run_opencode_in_container
