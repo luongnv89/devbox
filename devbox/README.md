@@ -2,7 +2,8 @@
 
 `devbox` is a small, glibc-based development image intended for the
 `opencode-docker-dev` skill. It keeps the tools needed to run OpenCode against
-a mounted project while avoiding the larger Ubuntu shell customizations.
+a mounted project. Interactive zsh matches the host setup: Oh My Zsh
+(`wedisagree`), zsh-users plugins, and Starship (shared `u2604dev/starship.toml`).
 
 ## Quick start
 
@@ -52,16 +53,18 @@ image.
 - Debian 13 slim with glibc
 - Node.js LTS (NodeSource) and npm, compatible with Debian 13
 - Python 3.13, pip, venv, and development headers
-- Git, Git LFS, build-essential, pkg-config
-- zsh with a minimal non-interactive-safe configuration
+- Git, Git LFS, GitHub CLI (`gh`), build-essential, pkg-config
+- zsh as the login shell, with Oh My Zsh (`ZSH_THEME=wedisagree`), plugins
+  `git`, `zsh-syntax-highlighting`, `zsh-autosuggestions`, `zsh-completions`,
+  Starship, and JetBrainsMono Nerd Font
 - OpenCode, Pi, `asm`, and baked skills in the `standard` and `ai-full` profiles
 - ripgrep (`rg`), fd (`fd`), jq, less, unzip, and `vi`
 - `sleep infinity` support for the skill's keep-alive container
 - `/workspace` and `/root/.config/opencode` directories
 
-The image intentionally omits Oh My Zsh, Starship, fonts, GitHub CLI, Docker
-CLI, fzf, and the full Ubuntu utility stack to keep the base lean. Use an
-Ubuntu `*dev` image when those tools are required.
+The image still omits Docker CLI, fzf, and the full Ubuntu utility stack
+(btop, bat, vim-plug, extra Oh My Zsh plugins). Use an Ubuntu `*dev` image
+when those tools are required.
 
 ## Profiles
 

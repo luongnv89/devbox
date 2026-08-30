@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`devbox`** interactive zsh matches the host: Oh My Zsh (`wedisagree`), zsh-users plugins, Starship (`u2604dev/starship.toml`), JetBrainsMono Nerd Font, and zsh as the login shell
 - **`update-ai-tools`** in every image (`/usr/local/bin/update-ai-tools`) to upgrade OpenCode, Pi, Claude Code, Codex, pi-extensions, herdr, asm, and baked skill repos without rebuilding
 - **`devbox`** Debian 13 slim image for sandboxed OpenCode tasks, with a lean
   development toolchain and the existing `standard` / `ai-full` profiles

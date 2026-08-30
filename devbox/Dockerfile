@@ -8,8 +8,9 @@ ENV DEV_IMAGE_NAME=devbox
 ENV DEBIAN_VERSION=13
 
 COPY common/install-devbox-base.sh common/setup-dev-user.sh \
-  common/finalize-dev-image.sh /opt/common/
-COPY devbox/.zshrc /root/.zshrc
+  common/finalize-dev-image.sh common/install-gh-cli.sh \
+  common/install-zsh-interactive.sh /opt/common/
+COPY u2604dev/starship.toml /root/.config/starship.toml
 
 ARG DEV_IMAGE_PROFILE=standard
 ARG DEV_CREATE_NONROOT_USER=0
@@ -26,7 +27,7 @@ RUN chmod +x /opt/common/*.sh && \
 COPY common/install-ai-tools.sh common/update-ai-tools.sh /opt/common/
 ARG AI_VERIFY_MODE=lenient
 ARG AI_TOOLS_CACHEBUST=0
-ARG AI_REQUIRED_COMMANDS="git zsh node npm python3 rg fd vi"
+ARG AI_REQUIRED_COMMANDS="git zsh node npm python3 rg fd vi gh starship"
 RUN chmod +x /opt/common/install-ai-tools.sh /opt/common/update-ai-tools.sh && \
     echo "AI_TOOLS_CACHEBUST=${AI_TOOLS_CACHEBUST}" && \
     DEV_IMAGE_PROFILE="${DEV_IMAGE_PROFILE}" AI_VERIFY_MODE="${AI_VERIFY_MODE}" \
@@ -37,6 +38,7 @@ ENV LANG=C.UTF-8
 ENV LANGUAGE=C.UTF-8
 ENV LC_ALL=C.UTF-8
 ENV TZ=Etc/UTC
+ENV SHELL=/usr/bin/zsh
 
 COPY common/entrypoint-dev.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

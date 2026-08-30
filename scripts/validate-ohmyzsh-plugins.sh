@@ -17,6 +17,19 @@ if ! grep -q 'install-docker-cli.sh' "$base"; then
     echo "FAIL: dev-image-base.sh does not invoke install-docker-cli.sh"
     fail=1
 fi
+devbox_zsh="$root/common/install-zsh-interactive.sh"
+devbox_expected='plugins=(git zsh-syntax-highlighting zsh-autosuggestions zsh-completions)'
+if [[ ! -f "$devbox_zsh" ]]; then
+    echo "FAIL: common/install-zsh-interactive.sh is missing"
+    fail=1
+elif ! grep -qF "$devbox_expected" "$devbox_zsh"; then
+    echo "FAIL: install-zsh-interactive.sh missing host-matching plugins= line"
+    fail=1
+elif grep -q 'plugins=.*docker' "$devbox_zsh"; then
+    echo "FAIL: install-zsh-interactive.sh lists docker in plugins= without Docker CLI"
+    fail=1
+fi
+
 for df in u2204dev/Dockerfile u2404dev/Dockerfile u2604dev/Dockerfile; do
     path="$root/$df"
     if grep -q 'plugins=.*kubectl' "$path"; then

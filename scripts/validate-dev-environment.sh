@@ -28,6 +28,7 @@ done
 
 [ -f "$ROOT/common/dev-image-base.sh" ] && ok "common/dev-image-base.sh" || bad "common/dev-image-base.sh" "missing"
 [ -f "$ROOT/common/install-devbox-base.sh" ] && ok "common/install-devbox-base.sh" || bad "common/install-devbox-base.sh" "missing"
+[ -f "$ROOT/common/install-zsh-interactive.sh" ] && ok "common/install-zsh-interactive.sh" || bad "common/install-zsh-interactive.sh" "missing"
 [ -f "$ROOT/common/update-ai-tools.sh" ] && ok "common/update-ai-tools.sh" || bad "common/update-ai-tools.sh" "missing"
 
 if command -v docker >/dev/null 2>&1; then

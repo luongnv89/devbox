@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GitHub CLI (gh) — official apt repository (all supported Ubuntu bases).
+# GitHub CLI (gh) — official apt repository (Ubuntu and Debian).
 set -euxo pipefail
 
 install -d -m 0755 /etc/apt/keyrings

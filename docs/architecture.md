@@ -31,7 +31,7 @@ flowchart LR
 ```
 
 1. **Python** — Ubuntu images use `UBUNTU_VERSION` (`common/install-python.sh:11-33`, `u2604dev/Dockerfile:7-22`); `devbox` installs Debian's Python 3.13 packages (`common/install-devbox-base.sh`).
-2. **Base** — Ubuntu images use the full apt CLI stack, Node LTS + Corepack, Oh My Zsh, Starship, vim-plug, fonts, GitHub CLI, and **Docker CLI client** (`common/dev-image-base.sh:15-78`, `common/install-docker-cli.sh:6-15`); `devbox` uses a lean Debian package set.
+2. **Base** — Ubuntu images use the full apt CLI stack, Node LTS + Corepack, Oh My Zsh, Starship, vim-plug, fonts, GitHub CLI, and **Docker CLI client** (`common/dev-image-base.sh:15-78`, `common/install-docker-cli.sh:6-15`); `devbox` uses a lean Debian package set plus host-matching Oh My Zsh/Starship (`common/install-zsh-interactive.sh`).
 3. **Finalize** — optional non-root `dev` user when `DEV_CREATE_NONROOT_USER=1` (`common/setup-dev-user.sh:3-7`, `u2604dev/Dockerfile:16-25`).
 4. **AI profile** — `DEV_IMAGE_PROFILE` controls global npm AI CLIs at `@latest` (`common/install-ai-tools.sh:18-44`). Every profile copies `update-ai-tools` to `/usr/local/bin`. `standard`/`ai-full` also install `asm` and bake `luongnv89/idd` + `luongnv89/skills`.
 5. **Runtime** — default entrypoint (`u2604dev/Dockerfile:40-41`, `devbox/Dockerfile`).

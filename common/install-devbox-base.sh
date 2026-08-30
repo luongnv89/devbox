@@ -13,6 +13,7 @@ apt-get install -y --no-install-recommends \
     coreutils \
     curl \
     fd-find \
+    fontconfig \
     git \
     git-lfs \
     jq \
@@ -26,6 +27,7 @@ apt-get install -y --no-install-recommends \
     tzdata \
     unzip \
     vim-tiny \
+    wget \
     zsh
 
 echo "[devbox] Installing Node.js LTS"
@@ -42,5 +44,9 @@ fi
 mkdir -p /workspace /root/.config/opencode
 
 git lfs install
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "${SCRIPT_DIR}/install-gh-cli.sh"
+bash "${SCRIPT_DIR}/install-zsh-interactive.sh"
 
 rm -rf /var/lib/apt/lists/*
