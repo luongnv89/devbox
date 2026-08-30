@@ -7,5 +7,5 @@ bash "${SCRIPT_DIR}/setup-dev-user.sh"
 
 mkdir -p /workspace
 if [ ! -f /etc/docker-dev-run-as ]; then
-  echo "root" > /etc/docker-dev-run-as
+    echo "root" >/etc/docker-dev-run-as
 fi

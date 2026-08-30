@@ -7,8 +7,8 @@ DEV_IMAGE_NAME="${DEV_IMAGE_NAME:-}"
 UBUNTU_VERSION="${UBUNTU_VERSION:-}"
 
 if [[ -z "${DEV_IMAGE_NAME}" || -z "${UBUNTU_VERSION}" ]]; then
-  echo "DEV_IMAGE_NAME and UBUNTU_VERSION must be set" >&2
-  exit 1
+    echo "DEV_IMAGE_NAME and UBUNTU_VERSION must be set" >&2
+    exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,37 +16,37 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "[Base] Updating apt cache and installing CLI tools"
 apt-get update
 apt-get install -y \
-  git git-lfs openssh-client vim wget curl zsh \
-  ca-certificates gnupg lsb-release \
-  software-properties-common \
-  build-essential \
-  locales \
-  unzip \
-  fontconfig \
-  btop ripgrep bat \
-  jq tzdata fzf fd-find \
-  ninja-build gettext cmake unzip curl
+    git git-lfs openssh-client vim wget curl zsh \
+    ca-certificates gnupg lsb-release \
+    software-properties-common \
+    build-essential \
+    locales \
+    unzip \
+    fontconfig \
+    btop ripgrep bat \
+    jq tzdata fzf fd-find \
+    ninja-build gettext cmake unzip curl
 
 case "${UBUNTU_VERSION}" in
-  22.04)
+22.04)
     if [[ -x /usr/bin/fdfind ]] && [[ ! -e /usr/bin/fd ]]; then
-      ln -sf /usr/bin/fdfind /usr/bin/fd
+        ln -sf /usr/bin/fdfind /usr/bin/fd
     fi
     ;;
-  24.04)
+24.04)
     ln -sf /usr/bin/batcat /usr/bin/bat
     ln -sf /usr/bin/rg /usr/bin/ripgrep
     if [[ -x /usr/bin/fdfind ]] && [[ ! -e /usr/bin/fd ]]; then
-      ln -sf /usr/bin/fdfind /usr/bin/fd
+        ln -sf /usr/bin/fdfind /usr/bin/fd
     fi
     ;;
-  26.04)
+26.04)
     ln -sf /usr/bin/batcat /usr/bin/bat
     if [[ -x /usr/bin/fdfind ]] && [[ ! -e /usr/bin/fd ]]; then
-      ln -sf /usr/bin/fdfind /usr/bin/fd
+        ln -sf /usr/bin/fdfind /usr/bin/fd
     fi
     ;;
-  *)
+*)
     echo "Unsupported UBUNTU_VERSION: ${UBUNTU_VERSION}" >&2
     exit 1
     ;;
@@ -73,9 +73,9 @@ rm -rf /var/lib/apt/lists/*
 
 echo "[Node] Enabling Corepack (pnpm, yarn)"
 if command -v corepack >/dev/null 2>&1; then
-  corepack enable
+    corepack enable
 else
-  echo "[Node] Warning: corepack not bundled with nodejs; install pnpm/yarn manually" >&2
+    echo "[Node] Warning: corepack not bundled with nodejs; install pnpm/yarn manually" >&2
 fi
 
 bash "${SCRIPT_DIR}/install-uv.sh"
@@ -85,11 +85,11 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/too
 
 echo "[Zsh] Fetching zsh plugins"
 git clone https://github.com/zsh-users/zsh-syntax-highlighting.git \
-  /root/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
+    /root/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
 git clone https://github.com/zsh-users/zsh-autosuggestions.git \
-  /root/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+    /root/.oh-my-zsh/custom/plugins/zsh-autosuggestions
 git clone https://github.com/zsh-users/zsh-completions.git \
-  /root/.oh-my-zsh/custom/plugins/zsh-completions
+    /root/.oh-my-zsh/custom/plugins/zsh-completions
 
 echo "[Starship] Installing Starship prompt"
 curl -sS https://starship.rs/install.sh | sh -s -- -y
@@ -97,13 +97,13 @@ mkdir -p /root/.config
 
 echo "[Vim] Installing vim-plug and plugins"
 curl -fLo /root/.vim/autoload/plug.vim --create-dirs \
-  https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 TERM=xterm-256color vim +'PlugInstall --sync' +qa
 
 echo "[Fonts] Installing JetBrainsMono Nerd Font"
 mkdir -p /usr/share/fonts/nerd-fonts
 wget -O /tmp/JetBrainsMono.zip \
-  https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
+    https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
 unzip /tmp/JetBrainsMono.zip -d /usr/share/fonts/nerd-fonts/
 fc-cache -fv
 rm /tmp/JetBrainsMono.zip
@@ -113,11 +113,11 @@ chsh -s "$(which zsh)"
 
 sed -i 's/^ZSH_THEME=".*"/ZSH_THEME=""/' /root/.zshrc
 sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' \
-  /root/.zshrc
+    /root/.zshrc
 
 cp "${SCRIPT_DIR}/shell-cli-extras.zsh" /root/.shell-cli-extras.zsh
 
-cat >> /root/.zshrc <<EOF
+cat >>/root/.zshrc <<EOF
 
 # Initialize Starship prompt
 eval "\$(starship init zsh)"
