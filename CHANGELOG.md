@@ -39,11 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CI** publishes only **u2604dev** and **devbox** at the **ai-full** profile (12-job matrix reduced to 2) to speed image builds; `u2204dev`, `u2404dev`, `standard`, and `minimal` remain local `cdev build` / `docker build`
 - **`common/install-ai-tools.sh`:** install global AI npm CLIs at `@latest` instead of pinned versions; drop Warp; add `agent-skill-manager` (`asm`) and bake [`luongnv89/idd`](https://github.com/luongnv89/idd) + [`luongnv89/skills`](https://github.com/luongnv89/skills) via `asm`; CI/`cdev build` pass `AI_TOOLS_CACHEBUST` so that layer is not served from a stale cache
 - **CONTRIBUTING.md:** document tracked high npm advisories on pinned `pi-coding-agent` and CI recovery for transient Docker Hub auth 502s
 - Ubuntu dev Dockerfiles (`u2204dev`, `u2404dev`, `u2604dev`) retain the shared Ubuntu installers; `devbox` uses a Debian-specific lean installer and reuses compatible runtime/profile steps
 
-- **Deprecated `u2604dev-opencode` as a first-class image.** OpenCode and other AI tooling already ship in `u2604dev` (and other base images). `cdev list` shows the four first-class images; `cdev run` / `cdev build` accept `--image u2604dev-opencode` as an alias to `u2604dev` with a migration hint. CI matrix unchanged for the deprecated image (never built opencode). Migration: `cdev run --image u2604dev --mount-opencode --mount-pi`.
+- **Deprecated `u2604dev-opencode` as a first-class image.** OpenCode and other AI tooling already ship in `u2604dev` (and other base images). `cdev list` shows the four first-class images; `cdev run` / `cdev build` accept `--image u2604dev-opencode` as an alias to `u2604dev` with a migration hint. CI publishes `u2604dev` and `devbox` at `ai-full` only. Migration: `cdev run --image u2604dev --mount-opencode --mount-pi`.
 - `u2204dev`, `u2404dev`, `u2604dev` Dockerfiles: repo-root build context, AI tooling baked in, shared entrypoint; Oh My Zsh `docker` plugin re-enabled with installed CLI
 - CI and pre-commit test builds use repository root as Docker build context
 - README: document `docker-dev` CLI and fix obsolete docker compose instructions

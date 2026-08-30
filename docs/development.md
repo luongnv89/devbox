@@ -81,7 +81,7 @@ CLI tests:
 
 ## CI parity
 
-Workflow: `.github/workflows/build-images.yml` — four images × three profiles, `linux/amd64` + `linux/arm64`, `DEV_IMAGE_PROFILE` + `AI_VERIFY_MODE=strict` on build (`.github/workflows/build-images.yml`).
+Workflow: `.github/workflows/build-images.yml` — `u2604dev` and `devbox` at `ai-full`, `linux/amd64` + `linux/arm64`, `AI_VERIFY_MODE=strict`.
 
 CI and `cdev build` pass `AI_TOOLS_CACHEBUST` so AI CLIs install at npm `@latest`. In a running container, `update-ai-tools` upgrades the same set.
 

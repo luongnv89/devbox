@@ -11,7 +11,7 @@ How **docker-dev** images and the **`cdev`** CLI fit together. Facts below are d
 | `common/` | Shared Ubuntu install steps plus reusable Python, user, AI-tool, and entrypoint scripts (`common/`) |
 | `cli/` | `cdev` launcher (`install.sh:38-43`, `cli/README.md`) |
 | `scripts/` | Pre-commit pipeline (`scripts/pre-commit.sh:4-23`), validation helpers |
-| `.github/workflows/build-images.yml` | Multi-profile GHCR publish for the four first-class images |
+| `.github/workflows/build-images.yml` | GHCR publish for `u2604dev` and `devbox` at `ai-full` |
 
 Deprecated: `u2604dev-opencode/` — local optional tag only; not in CI matrix (`u2604dev-opencode/README.md:3-4`).
 
@@ -42,11 +42,11 @@ Build context is always the **repository root** (`.`); not the per-image directo
 
 | Profile | AI npm globals | GHCR tag suffix |
 |---------|----------------|-----------------|
-| `ai-full` (default) | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, idd + skills | `:latest` (`cli/lib/profiles.sh:17-24`, `.github/workflows/build-images.yml:130-132`) |
+| `ai-full` (default) | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, idd + skills | `:latest` (`cli/lib/profiles.sh:17-24`, `.github/workflows/build-images.yml`) |
 | `standard` | OpenCode, Pi, asm, idd + skills | `:latest-standard` |
 | `minimal` | none | `:latest-minimal` |
 
-CI builds all three profiles per image (`.github/workflows/build-images.yml:88-89`). Local/`cdev` defaults are `ai-full` for Ubuntu images and `standard` for `devbox` (`cli/lib/profiles.sh`, `cli/lib/build.sh`, `cli/lib/run.sh`).
+CI publishes **u2604dev** and **devbox** at `ai-full` only (`.github/workflows/build-images.yml`). Local/`cdev` defaults are `ai-full` for Ubuntu images and `standard` for `devbox` (`cli/lib/profiles.sh`, `cli/lib/build.sh`, `cli/lib/run.sh`). `u2204dev`, `u2404dev`, `standard`, and `minimal` remain buildable locally.
 
 ## `cdev` vs plain `docker run`
 
@@ -56,10 +56,10 @@ CI builds all three profiles per image (`.github/workflows/build-images.yml:88-8
 
 ## CI gates
 
-- **Change detection** — `u2204dev`, `u2404dev`, `u2604dev`, and `devbox` (`.github/workflows/build-images.yml`).
+- **CI images** — `u2604dev` and `devbox` at `ai-full` (`.github/workflows/build-images.yml`).
 - **npm audit** — latest AI globals (`scripts/verify-ai-globals-audit.sh`, workflow job `npm-audit-ai-globals`).
-- **Build** — `AI_VERIFY_MODE=strict` in CI (`.github/workflows/build-images.yml:145-146`, `CONTRIBUTING.md` verify modes).
-- **Trivy / attestation** — `ai-full` pushes on `main` only (`.github/workflows/build-images.yml:156-174`).
+- **Build** — `AI_VERIFY_MODE=strict` in CI (`.github/workflows/build-images.yml`, `CONTRIBUTING.md` verify modes).
+- **Trivy / attestation** — pushes on `main` only (`.github/workflows/build-images.yml`).
 
 ## Related docs
 

@@ -112,8 +112,10 @@ mkdir -p <image-name>
 
 5. Update the main `README.md` to include your new image
 
-6. Add the image to the change-detection and build matrix in
-   `.github/workflows/build-images.yml`
+6. If GitHub Actions should publish it, add it to the build matrix in
+   `.github/workflows/build-images.yml` (CI currently publishes
+   **u2604dev** and **devbox** at the **ai-full** profile only; other
+   images/profiles are local `cdev build` / `docker build`)
 
 ## Pull Request Process
 

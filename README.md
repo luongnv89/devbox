@@ -82,8 +82,8 @@ Use the preset only when `~/.ssh`, `~/.claude`, `~/.codex`, and `~/.config/openc
 | Inspect paths and configuration | `cdev config` |
 | Build locally, then start | `cdev run --build -w "$PWD"` |
 | Pull the published image, then start | `cdev run --pull -w "$PWD"` |
-| Choose Ubuntu 24.04 | `cdev run --pull --image u2404dev -w "$PWD"` |
-| Use lean Debian/OpenCode image | `cdev run --pull --image devbox --profile standard -w "$PWD" --mount-opencode` |
+| Use the lean Debian image | `cdev run --pull --image devbox -w "$PWD" --mount-opencode` |
+| Build Ubuntu 24.04 or 22.04 locally | `docker build -t u2404dev -f u2404dev/Dockerfile .` |
 | Create a named container | `cdev run --pull --name my-dev -w "$PWD"` |
 | Re-enter a running named container | `docker exec -it my-dev zsh` |
 | Show every run option | `cdev run --help` |
@@ -103,34 +103,43 @@ Use the preset only when `~/.ssh`, `~/.claude`, `~/.codex`, and `~/.config/openc
 
 ## Images and Profiles
 
-### Images
+Only **two images are maintained and published** to GHCR (`:latest`, `ai-full`):
 
-| Image | Base | Python |
-|---|---|---|
-| `u2604dev` | Ubuntu 26.04 | 3.13 |
-| `u2404dev` | Ubuntu 24.04 | 3.12 |
-| `u2204dev` | Ubuntu 22.04 | 3.12 |
-| `devbox` | Debian 13 slim | 3.13 |
+| Image | Base | Python | Pull |
+|---|---|---|---|
+| `u2604dev` (default) | Ubuntu 26.04 | 3.13 | `cdev run --pull` |
+| `devbox` | Debian 13 slim | 3.13 | `cdev run --pull --image devbox` |
 
-`u2604dev` is the default full image. `devbox:latest-standard` is the lean image recommended for sandboxed OpenCode tasks. The deprecated `u2604dev-opencode` name resolves to `u2604dev`.
+The deprecated `u2604dev-opencode` name resolves to `u2604dev`.
+
+### Other images (build locally)
+
+`u2404dev` (Ubuntu 24.04) and `u2204dev` (Ubuntu 22.04) stay in the repo but are **not** published. Build them from the repository root (Dockerfiles copy files from `common/`):
+
+```bash
+docker build -t u2404dev -f u2404dev/Dockerfile .
+docker build -t u2204dev -f u2204dev/Dockerfile .
+```
+
+Then run with `cdev run --image u2404dev --build -w "$PWD"` or plain `docker run`:
+
+```bash
+docker run --rm -it -v "$PWD":/workspace u2404dev zsh
+```
 
 ### Profiles
 
-| Profile | GHCR tag | AI tools |
+CI publishes **`ai-full` only** (`:latest`). `standard` and `minimal` are local builds:
+
+| Profile | How to get it | AI tools |
 |---|---|---|
-| `ai-full` (default) | `latest` | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, idd + skills |
-| `standard` | `latest-standard` | OpenCode, Pi, asm, idd + skills |
-| `minimal` | `latest-minimal` | No global AI tools |
+| `ai-full` (default) | `cdev run --pull` | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, idd + skills |
+| `standard` | `docker build --build-arg DEV_IMAGE_PROFILE=standard -t u2604dev:standard -f u2604dev/Dockerfile .` | OpenCode, Pi, asm, idd + skills |
+| `minimal` | `docker build --build-arg DEV_IMAGE_PROFILE=minimal -t u2604dev:minimal -f u2604dev/Dockerfile .` | No global AI tools |
 
 Images install those npm CLIs at `@latest` at build time. `ai-full` and `standard` also install [`agent-skill-manager`](https://github.com/luongnv89/agent-skill-manager) (`asm`) and bake skills from [`luongnv89/idd`](https://github.com/luongnv89/idd) and [`luongnv89/skills`](https://github.com/luongnv89/skills) into `~/.agents/skills` (linked into the CLIs that profile ships). Host `--mount-claude` / `--mount-opencode` overlays those agent dirs.
 
 In a running container, run `update-ai-tools` (root or sudo) to upgrade CLIs and re-install those skill repos — that is the way to stop in-app “install new version” nags.
-
-Select a profile when pulling or building:
-
-```bash
-cdev run --pull --profile standard --workspace "$PWD"
-```
 
 ## Authentication and Mounts
 
@@ -292,7 +301,7 @@ Run checks directly:
 ./scripts/pre-commit.sh
 ```
 
-The checks format shell scripts with shfmt, run ShellCheck and Hadolint, build `u2204dev` (`scripts/tasks/test.sh:11`), and remove temporary files. GitHub Actions builds changed images across three profiles, scans with Trivy, and publishes provenance attestations.
+The checks format shell scripts with shfmt, run ShellCheck and Hadolint, build `u2204dev` (`scripts/tasks/test.sh:11`), and remove temporary files. GitHub Actions builds **u2604dev** and **devbox** at `ai-full`, scans with Trivy, and publishes provenance attestations.
 
 To add an image, create `<image-name>/Dockerfile`, add `<image-name>/README.md`, update the image table, and follow [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-image).
 

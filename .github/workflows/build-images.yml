@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "u*/**"
+      - "u2604dev/**"
       - "devbox/**"
       - "common/**"
       - "cli/**"
@@ -15,7 +15,7 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - "u*/**"
+      - "u2604dev/**"
       - "devbox/**"
       - "common/**"
       - "cli/**"
@@ -25,9 +25,14 @@ on:
       - "README.md"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}
+  DEV_IMAGE_PROFILE: ai-full
 
 jobs:
   npm-audit-ai-globals:
@@ -45,64 +50,19 @@ jobs:
       - name: Audit latest global AI npm packages
         run: bash scripts/verify-ai-globals-audit.sh
 
-  detect-changes:
-    name: Detect Changed Images
-    runs-on: ubuntu-latest
-    outputs:
-      images: ${{ steps.detect.outputs.images }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed images
-        id: detect
-        run: |
-          IMAGES=()
-          if git diff --name-only origin/main...HEAD | grep -q "^u2204dev/"; then
-            IMAGES+=("u2204dev")
-          fi
-          if git diff --name-only origin/main...HEAD | grep -q "^u2404dev/"; then
-            IMAGES+=("u2404dev")
-          fi
-          if git diff --name-only origin/main...HEAD | grep -q "^u2604dev/"; then
-            IMAGES+=("u2604dev")
-          fi
-          if git diff --name-only origin/main...HEAD | grep -q "^devbox/"; then
-            IMAGES+=("devbox")
-          fi
-          if [ ${#IMAGES[@]} -eq 0 ]; then
-            IMAGES=("u2204dev" "u2404dev" "u2604dev" "devbox")
-          fi
-          # Convert to compact single-line JSON array
-          JSON_IMAGES=$(printf '%s\n' "${IMAGES[@]}" | jq -R . | jq -s . | jq -c)
-          echo "images=${JSON_IMAGES}" >> $GITHUB_OUTPUT
-
   build:
-    name: Build ${{ matrix.image }} (${{ matrix.profile }})
+    name: Build ${{ matrix.image }} (ai-full)
     needs:
-      - detect-changes
       - npm-audit-ai-globals
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        image: ${{ fromJson(needs.detect-changes.outputs.images) }}
-        profile: [ai-full, minimal, standard]
         include:
-          - image: u2204dev
-            dockerfile: u2204dev/Dockerfile
-            context: .
-          - image: u2404dev
-            dockerfile: u2404dev/Dockerfile
-            context: .
           - image: u2604dev
             dockerfile: u2604dev/Dockerfile
-            context: .
           - image: devbox
             dockerfile: devbox/Dockerfile
-            context: .
     permissions:
       contents: read
       packages: write
@@ -135,34 +95,32 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
           tags: |
-            type=raw,value=latest,enable=${{ matrix.profile == 'ai-full' }}
-            type=raw,value=latest-minimal,enable=${{ matrix.profile == 'minimal' }}
-            type=raw,value=latest-standard,enable=${{ matrix.profile == 'standard' }}
-            type=sha,enable=${{ matrix.profile == 'ai-full' }}
-            type=ref,event=branch,enable=${{ matrix.profile == 'ai-full' }}
-            type=semver,pattern={{version}},enable=${{ matrix.profile == 'ai-full' }}
-            type=semver,pattern={{major}}.{{minor}},enable=${{ matrix.profile == 'ai-full' }}
+            type=raw,value=latest
+            type=sha
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.context }}
+          context: .
           file: ${{ matrix.dockerfile }}
           build-args: |
-            DEV_IMAGE_PROFILE=${{ matrix.profile }}
+            DEV_IMAGE_PROFILE=${{ env.DEV_IMAGE_PROFILE }}
             AI_VERIFY_MODE=strict
             AI_TOOLS_CACHEBUST=${{ github.run_id }}
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.profile }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.profile }}
+          cache-from: type=gha,scope=${{ matrix.image }}-ai-full
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-ai-full
           provenance: true
 
       - name: Generate Artifact Attestation
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.profile == 'ai-full'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@v2
         with:
           subject-name: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}
@@ -170,7 +128,7 @@ jobs:
           push-to-registry: true
 
       - name: Security Scan with Trivy
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.profile == 'ai-full'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: aquasecurity/trivy-action@master
         with:
           scan-type: 'image'
@@ -180,14 +138,14 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy scan results to GitHub Security tab
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.profile == 'ai-full'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
           category: '/${{ matrix.image }}'
 
       - name: Inspect final image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.profile == 'ai-full'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           image_ref="${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image }}"
           echo "=== ${image_ref} ==="

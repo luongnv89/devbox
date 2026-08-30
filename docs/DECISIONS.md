@@ -23,5 +23,9 @@ Append-only record of ambiguities resolved while reconciling docs to the codebas
 - Source: `devbox/Dockerfile`, `common/install-devbox-base.sh`, `README.md`
 
 - Q: How should the new image be published and selected by `cdev`?
-- A (code audit): Publish `devbox` across the same `ai-full`, `standard`, and `minimal` profile tags; default `devbox` to `standard` while preserving `ai-full` as the Ubuntu default.
+- A (code audit): `cdev` still lists all four images and three profiles. GitHub Actions publishes **u2604dev** and **devbox** at **ai-full** (`:latest`) only; other combinations are local builds.
 - Source: `.github/workflows/build-images.yml`, `cli/lib/images.sh`, `cli/lib/profiles.sh`
+
+- Q: Which images should CI build to keep the pipeline fast?
+- A: **u2604dev** and **devbox**, both `ai-full`. Drop change-detection and the 4×3 matrix.
+- Source: `.github/workflows/build-images.yml`
