@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 # Published / first-class images (CI builds these only — see .github/workflows/build-images.yml)
-DOCKER_DEV_IMAGES=(u2204dev u2404dev u2604dev)
+DOCKER_DEV_IMAGES=(u2204dev u2404dev u2604dev devbox)
 
 # Legacy names accepted by cdev run/build with a deprecation notice (not listed by cdev list)
 DOCKER_DEV_DEPRECATED_IMAGES=(u2604dev-opencode)

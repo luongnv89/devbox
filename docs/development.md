@@ -48,6 +48,8 @@ Always use repo root as context:
 docker build -t test-u2604dev -f u2604dev/Dockerfile .
 docker build --build-arg DEV_IMAGE_PROFILE=minimal -t test-u2604dev:minimal -f u2604dev/Dockerfile .
 docker build --build-arg AI_VERIFY_MODE=strict -f u2604dev/Dockerfile .
+docker build --build-arg DEV_IMAGE_PROFILE=standard \
+  -t test-devbox:latest-standard -f devbox/Dockerfile .
 ```
 
 Non-root image (`common/setup-dev-user.sh:3-7`):
@@ -79,10 +81,10 @@ CLI tests:
 
 ## CI parity
 
-Workflow: `.github/workflows/build-images.yml` — three images × three profiles, `linux/amd64` + `linux/arm64`, `DEV_IMAGE_PROFILE` + `AI_VERIFY_MODE=strict` on build (`.github/workflows/build-images.yml:145-148`).
+Workflow: `.github/workflows/build-images.yml` — four images × three profiles, `linux/amd64` + `linux/arm64`, `DEV_IMAGE_PROFILE` + `AI_VERIFY_MODE=strict` on build (`.github/workflows/build-images.yml`).
 
-Bump AI CLI pins in `common/install-ai-tools.sh` per `CONTRIBUTING.md` (“Bumping AI CLI versions”).
+CI and `cdev build` pass `AI_TOOLS_CACHEBUST` so AI CLIs install at npm `@latest`. In a running container, `update-ai-tools` upgrades the same set.
 
 ## Documentation
 
-When changing behavior, update root `README.md`, affected `u*/README.md`, `cli/README.md`, and `CHANGELOG.md`. Architecture overview: [architecture.md](architecture.md).
+When changing behavior, update root `README.md`, the affected image `README.md`, `cli/README.md`, and `CHANGELOG.md`. Architecture overview: [architecture.md](architecture.md).

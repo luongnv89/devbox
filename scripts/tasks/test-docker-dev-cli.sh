@@ -56,8 +56,10 @@ PRESET_FULL="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
 AUTH_REF="$(CDEV_REPO="${ROOT_DIR}" bash -c 'source "${CDEV_REPO}/cli/lib/common.sh"; docker_dev_sandbox_auth_doc_ref')"
 assert_contains "$AUTH_REF" "Authentication"
 assert_contains "$("${CLI}" list)" "u2604dev"
+assert_contains "$("${CLI}" list)" "devbox"
 LIST_JSON="$("${CLI}" list --format json)"
 assert_contains "$LIST_JSON" "u2604dev"
+assert_contains "$LIST_JSON" "devbox"
 case "$LIST_JSON" in
   *u2604dev-opencode*) echo "u2604dev-opencode should not appear in cdev list" >&2; exit 1 ;;
 esac
@@ -86,6 +88,13 @@ PROFILE_TAG="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
   docker_dev_profile_image_tag minimal
 ')"
 [ "$PROFILE_TAG" = "latest-minimal" ] || { echo "expected latest-minimal, got: ${PROFILE_TAG}" >&2; exit 1; }
+
+DEVBOX_PROFILE="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
+  source "${CDEV_REPO}/cli/lib/common.sh"
+  source "${CDEV_REPO}/cli/lib/profiles.sh"
+  docker_dev_default_profile_for_image devbox
+')"
+[ "$DEVBOX_PROFILE" = "standard" ] || { echo "expected devbox standard profile, got: ${DEVBOX_PROFILE}" >&2; exit 1; }
 
 HOME_ROOT="$(CDEV_REPO="${ROOT_DIR}" DOCKER_DEV_QUIET=1 bash -c '
   source "${CDEV_REPO}/cli/lib/common.sh"

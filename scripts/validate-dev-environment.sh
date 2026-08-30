@@ -17,13 +17,15 @@ command -v git >/dev/null && ok "git on PATH" || bad "git on PATH" "install git"
 # Pre-commit driver (scripts/pre-commit.sh:4-23)
 [ -x "$ROOT/scripts/pre-commit.sh" ] && ok "scripts/pre-commit.sh" || bad "scripts/pre-commit.sh" "missing"
 
-for df in u2204dev/Dockerfile u2404dev/Dockerfile u2604dev/Dockerfile; do
+for df in u2204dev/Dockerfile u2404dev/Dockerfile u2604dev/Dockerfile devbox/Dockerfile; do
   [ -f "$ROOT/$df" ] && ok "$df present" || bad "$df present" "missing"
 done
 
 [ -f "$ROOT/.github/workflows/build-images.yml" ] && ok "build-images workflow" || bad "build-images workflow" "missing"
 
 [ -f "$ROOT/common/dev-image-base.sh" ] && ok "common/dev-image-base.sh" || bad "common/dev-image-base.sh" "missing"
+[ -f "$ROOT/common/install-devbox-base.sh" ] && ok "common/install-devbox-base.sh" || bad "common/install-devbox-base.sh" "missing"
+[ -f "$ROOT/common/update-ai-tools.sh" ] && ok "common/update-ai-tools.sh" || bad "common/update-ai-tools.sh" "missing"
 
 if command -v docker >/dev/null 2>&1; then
   ok "docker on PATH (optional for test.sh)"

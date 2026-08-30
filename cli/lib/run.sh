@@ -46,7 +46,7 @@ Usage: cdev run [options]
 Create and start an interactive dev container (zsh).
 
 Options:
-  -i, --image NAME     Image (u2204dev|u2404dev|u2604dev; u2604dev-opencode aliases u2604dev)
+  -i, --image NAME     Image (u2204dev|u2404dev|u2604dev|devbox; u2604dev-opencode aliases u2604dev)
   --preset NAME        Workflow preset: ai, full (see below)
   -w, --workspace DIR  Host path mounted at /workspace (default: cwd)
   --mount-codex        Mount $HOME/.codex → container home (see --nonroot)
@@ -64,7 +64,7 @@ Options:
   --nonroot            Run as host uid:gid; use with image built via cdev build --nonroot
                        (or docker build --build-arg DEV_CREATE_NONROOT_USER=1). Mounts
                        AI/SSH config under /home/dev instead of /root.
-  -p, --profile NAME   Image profile: minimal, standard, ai-full (default: ai-full)
+  -p, --profile NAME   Image profile: minimal, standard, ai-full (default: ai-full; devbox: standard)
   --build              Build image before run (uses --profile; --nonroot adds dev user)
   --pull               Pull from ghcr.io/luongnv89/IMAGE (tag from --profile)
   -n, --name NAME      Container name (omit --rm behavior when set)
@@ -92,7 +92,7 @@ EOF
   image="$(docker_dev_resolve_image "$image")"
   docker_dev_validate_image "$image"
   if [ -z "$profile" ]; then
-    profile="$DOCKER_DEV_DEFAULT_PROFILE"
+    profile="$(docker_dev_default_profile_for_image "$image")"
   fi
   docker_dev_validate_profile "$profile"
   if [ -z "$image_tag" ]; then

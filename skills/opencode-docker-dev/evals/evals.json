@@ -8,10 +8,10 @@
       "expected_output": "The skill runs one-shot mode: checks Docker, builds mounts (project dir + ~/.config/opencode only, no SSH/GH), runs scripts/run_opencode.sh with a --message, and reports the result plus a Step Completion Report. No SSH key or GH token mount appears anywhere in the commands run.",
       "files": [],
       "expectations": [
-        "The run invoked scripts/run_opencode.sh (or the equivalent docker run --rm ... opencode run --auto) rather than driving an interactive TUI",
+        "The run started the container with --start-only (or equivalent docker run -d ... sleep infinity), showed docker exec -it <name> zsh to the user, then ran OpenCode with --exec-in (or docker exec ... opencode run --auto) rather than driving an interactive TUI",
         "No command mounts ~/.ssh or sets GH_TOKEN/passes a GitHub token",
         "The report/output states the exit code from the container run",
-        "A Step Completion Report is printed with the documented rows (Docker daemon, Image ready, Mounts, Credential redline, Task exit code)"
+        "A Step Completion Report is printed with the documented rows (Docker daemon, Image ready, Mounts, Credential redline, Attach command, Task exit code, Container)"
       ]
     },
     {
@@ -61,6 +61,19 @@
       "expectations": [
         "No docker run, cdev run, or docker-dev repo commands are invoked",
         "The response does not apply opencode-docker-dev's mount-building or preflight workflow"
+      ]
+    },
+    {
+      "id": 6,
+      "kind": "happy-path",
+      "prompt": "Run OpenCode in the docker-dev container on this repo to list the top-level files. After it starts I want a command I can paste to get a shell inside that container. Don't delete the container unless I say so.",
+      "expected_output": "The skill starts a named keep-alive container (no --rm), prints a copy-paste docker exec -it <name> zsh attach command, runs the listing task, reviews the host diff, and asks whether to remove the container — it does not docker rm unless the user confirms.",
+      "files": [],
+      "expectations": [
+        "A copy-paste attach command of the form docker exec -it <container-name> zsh is shown to the user before OpenCode finishes (via --start-only, not only after a blocking run)",
+        "The docker run that creates the container does not include --rm (unless the user asked for auto-remove)",
+        "After the task, the assistant asks the user whether to remove the container rather than removing it unprompted",
+        "No SSH key or GitHub token is mounted or injected"
       ]
     }
   ]

@@ -25,13 +25,16 @@ Usage: cdev build [options]
 Build a dev image locally (requires Docker).
 
 Options:
-  -i, --image NAME      Image name (default: u2604dev)
-  -p, --profile NAME    Build profile: minimal, standard, ai-full (default: ai-full)
+  -i, --image NAME      Image name: u2204dev, u2404dev, u2604dev, devbox (default: u2604dev)
+  -p, --profile NAME    Build profile: minimal, standard, ai-full (default: ai-full; devbox: standard)
   -t, --tag TAG         Image tag (default: latest, or latest-<profile> when --profile set)
   --nonroot             Create dev user (uid/gid 1000 or host id when set)
   --dev-uid UID         UID for dev user when --nonroot (default: 1000)
   --dev-gid GID         GID for dev user when --nonroot (default: 1000)
   -h, --help            Show help
+
+AI npm CLIs install @latest. Each cdev build refreshes that layer
+(AI_TOOLS_CACHEBUST). Inside a running container: update-ai-tools
 EOF
         return 0
         ;;
@@ -50,7 +53,7 @@ EOF
   docker_dev_validate_image "$image"
 
   if [ -z "$profile" ]; then
-    profile="$DOCKER_DEV_DEFAULT_PROFILE"
+    profile="$(docker_dev_default_profile_for_image "$image")"
   fi
   docker_dev_validate_profile "$profile"
 
@@ -66,7 +69,7 @@ EOF
   local local_tag="${image}:${tag}"
   log_info "Building ${local_tag} (profile: ${profile})"
 
-  local build_args=(--build-arg "DEV_IMAGE_PROFILE=${profile}")
+  local build_args=(--build-arg "DEV_IMAGE_PROFILE=${profile}" --build-arg "AI_TOOLS_CACHEBUST=$(date +%s)")
   if docker_dev_nonroot_enabled "$nonroot"; then
     dev_uid="${dev_uid:-1000}"
     dev_gid="${dev_gid:-1000}"

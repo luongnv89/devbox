@@ -40,6 +40,7 @@ for mount_label in \
   "${HOME_DIR}/.claude:Claude Code config" \
   "${HOME_DIR}/.config/opencode:OpenCode config" \
   "${HOME_DIR}/.pi:Pi agent config" \
+  "${HOME_DIR}/.agents:Agent skills" \
   "/workspace:Workspace"; do
   path="${mount_label%%:*}"
   label="${mount_label#*:}"
@@ -47,6 +48,10 @@ for mount_label in \
     echo "[dev] Mounted ${label} → ${path}"
   fi
 done
+
+if command -v update-ai-tools >/dev/null 2>&1; then
+  echo "[dev] AI CLIs: run update-ai-tools to upgrade OpenCode/Claude/Codex/Pi to latest (stops in-app update nags)."
+fi
 
 if [ "$(id -u)" -eq 0 ] && [ "$RUN_AS" = "dev" ] && id -u dev >/dev/null 2>&1; then
   exec gosu dev "$@"

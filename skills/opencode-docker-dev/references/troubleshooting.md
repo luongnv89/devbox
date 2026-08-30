@@ -28,8 +28,9 @@ This is an account-level limit on OpenCode's free `OpenCode Zen` routing, not
 a docker-dev or container problem — it happens identically on the host. In
 testing, a **fresh container session avoided a stall that had already reached
 9 retries with minute-plus backoffs on the host** — but the credential is the
-same mounted `~/.config/opencode`, so this is not a reliable fix, only an
-observed mitigation. If a task stalls here for more than a couple of minutes:
+the same host OpenCode config snapshot, so this is not a reliable fix, only
+an observed mitigation. If a task stalls here for more than a couple of
+minutes:
 
 - Retry once in a fresh container (new `docker run`, not a resumed session).
 - If it stalls again immediately, the account is genuinely rate-limited —
@@ -96,20 +97,56 @@ rewrites a commit that may already be pushed or referenced elsewhere).
 
 ## A second run reuses a stale container `--name`
 
-This only affects **interactive mode**, whose `docker run` template in
-`references/interactive-mode.md` passes an explicit `--name <container-name>`.
-If the container from a prior interactive session was not stopped and removed
-(e.g. the pane was closed without `docker stop`), starting a new one with the
-same `--name` fails: `docker: Error response from daemon: Conflict. The
-container name "/..." is already in use...`
+Both modes now pass an explicit `--name`. One-shot defaults to
+`opencode-dev-<project>-<epoch>` (unique per invocation). Interactive must
+do the same. If you reuse a name that is still in use — including a
+**kept** container the user declined to remove — Docker fails: `docker:
+Error response from daemon: Conflict. The container name "/..." is already
+in use...`
 
-(One-shot mode's `run_opencode.sh` never passes `--name`, so Docker assigns
-a random name and collisions cannot occur.)
+`run_opencode.sh` detects this before `docker run` and prints a unique
+`--name` (or `--exec-in` to reuse) as the first fix. `docker rm -fv` is
+mentioned last, and only if the user confirms destroying the kept container;
+the `-v` is required to remove the anonymous volume containing the copied
+OpenCode config and credentials.
 
-Fix: `docker rm <container-name>` the stale container, or use a unique
-`--name` per invocation (e.g. a timestamp suffix). Containers started with
-`--rm` self-remove on normal exit, so this only surfaces when the container
-was not allowed to shut down cleanly.
+## Leftover kept containers
+
+Keep-by-default means `docker ps` will accumulate `opencode-dev-*`
+containers (label `opencode-docker-dev=1`). That is intended, not a leak to
+silently fix. List them with:
+
+```bash
+docker ps -a --filter label=opencode-docker-dev=1
+```
+
+Remove one only after the user confirms: `docker rm -fv <name>`. The
+`-v` removes the anonymous volume containing the copied OpenCode config and
+credentials. `--rm` on the `--exec-in` invocation restores auto-remove for
+that one run.
+
+## OpenCode config is stale inside a kept container
+
+The host config is copied once when a new container is created. OpenCode can
+update its isolated container-local state, but host config edits are not
+propagated into an existing container, and `--exec-in` does not refresh the
+snapshot. Create a new container when you need a fresh host config. When
+cleaning up a kept container, use `docker rm -fv <name>` so the copied
+credential volume is removed too.
+
+## Attach fails: container is not running
+
+`docker exec` requires a running container. If the name exists in
+`docker ps -a` but not `docker ps`:
+
+```bash
+docker start <container-name>
+docker exec -it <container-name> zsh
+```
+
+`--exec-in` does the `docker start` itself before running OpenCode. Do not
+create a second container, and do not `docker rm` the stopped one to "fix"
+the attach.
 
 ## A pre-commit/test hook fails inside the container but passes standalone
 

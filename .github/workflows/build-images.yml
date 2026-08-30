@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "u*/**"
+      - "devbox/**"
       - "common/**"
       - "cli/**"
       - "install.sh"
@@ -15,6 +16,7 @@ on:
     branches: [main]
     paths:
       - "u*/**"
+      - "devbox/**"
       - "common/**"
       - "cli/**"
       - "install.sh"
@@ -29,7 +31,7 @@ env:
 
 jobs:
   npm-audit-ai-globals:
-    name: npm audit (pinned AI globals)
+    name: npm audit (latest AI globals)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -40,7 +42,7 @@ jobs:
         with:
           node-version: "lts/*"
 
-      - name: Audit pinned global AI npm packages
+      - name: Audit latest global AI npm packages
         run: bash scripts/verify-ai-globals-audit.sh
 
   detect-changes:
@@ -67,8 +69,11 @@ jobs:
           if git diff --name-only origin/main...HEAD | grep -q "^u2604dev/"; then
             IMAGES+=("u2604dev")
           fi
+          if git diff --name-only origin/main...HEAD | grep -q "^devbox/"; then
+            IMAGES+=("devbox")
+          fi
           if [ ${#IMAGES[@]} -eq 0 ]; then
-            IMAGES=("u2204dev" "u2404dev" "u2604dev")
+            IMAGES=("u2204dev" "u2404dev" "u2604dev" "devbox")
           fi
           # Convert to compact single-line JSON array
           JSON_IMAGES=$(printf '%s\n' "${IMAGES[@]}" | jq -R . | jq -s . | jq -c)
@@ -94,6 +99,9 @@ jobs:
             context: .
           - image: u2604dev
             dockerfile: u2604dev/Dockerfile
+            context: .
+          - image: devbox
+            dockerfile: devbox/Dockerfile
             context: .
     permissions:
       contents: read
@@ -144,6 +152,7 @@ jobs:
           build-args: |
             DEV_IMAGE_PROFILE=${{ matrix.profile }}
             AI_VERIFY_MODE=strict
+            AI_TOOLS_CACHEBUST=${{ github.run_id }}
           push: ${{ github.event_name != 'pull_request' }}
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}

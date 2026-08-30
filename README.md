@@ -48,7 +48,7 @@ graph LR
     B -->|pull or build| C[Ubuntu dev image]
     D[Host AI config] -->|optional mount| B
     C --> E[Disposable zsh container]
-    E --> F[Claude Code, Codex, OpenCode, Pi, herdr]
+    E --> F[Claude Code, Codex, OpenCode, Pi, herdr, asm]
 ```
 
 `cdev` selects an image, mounts the workspace, and starts `zsh`. AI credentials stay outside the image and can be mounted from the host.
@@ -64,6 +64,7 @@ Mount only the configuration needed by your tool:
 | OpenCode | `cdev run --pull -w "$PWD" --mount-opencode` | `opencode` |
 | Pi | `cdev run --pull -w "$PWD" --mount-pi` | `pi` |
 | herdr | `cdev run --pull -w "$PWD"` | `herdr` |
+| asm | `cdev run --pull -w "$PWD"` | `asm` |
 
 The `ai` preset mounts SSH, Claude, Codex, OpenCode, and Pi configuration together:
 
@@ -82,6 +83,7 @@ Use the preset only when `~/.ssh`, `~/.claude`, `~/.codex`, and `~/.config/openc
 | Build locally, then start | `cdev run --build -w "$PWD"` |
 | Pull the published image, then start | `cdev run --pull -w "$PWD"` |
 | Choose Ubuntu 24.04 | `cdev run --pull --image u2404dev -w "$PWD"` |
+| Use lean Debian/OpenCode image | `cdev run --pull --image devbox --profile standard -w "$PWD" --mount-opencode` |
 | Create a named container | `cdev run --pull --name my-dev -w "$PWD"` |
 | Re-enter a running named container | `docker exec -it my-dev zsh` |
 | Show every run option | `cdev run --help` |
@@ -92,7 +94,7 @@ Use the preset only when `~/.ssh`, `~/.claude`, `~/.codex`, and `~/.config/openc
 
 | Capability | What you get |
 |---|---|
-| AI tools | Claude Code, Codex, OpenCode, Pi, extensions, and herdr |
+| AI tools | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, and baked skills from [idd](https://github.com/luongnv89/idd) + [skills](https://github.com/luongnv89/skills) |
 | Terminal | zsh, Oh My Zsh, Starship, Vim, fzf, fd, jq |
 | Runtimes | Node.js LTS, Corepack, Python, pip, and uv |
 | Git workflow | Git, GitHub CLI, and optional read-only SSH mounting |
@@ -108,16 +110,21 @@ Use the preset only when `~/.ssh`, `~/.claude`, `~/.codex`, and `~/.config/openc
 | `u2604dev` | Ubuntu 26.04 | 3.13 |
 | `u2404dev` | Ubuntu 24.04 | 3.12 |
 | `u2204dev` | Ubuntu 22.04 | 3.12 |
+| `devbox` | Debian 13 slim | 3.13 |
 
-`u2604dev` is the default. The deprecated `u2604dev-opencode` name resolves to `u2604dev`.
+`u2604dev` is the default full image. `devbox:latest-standard` is the lean image recommended for sandboxed OpenCode tasks. The deprecated `u2604dev-opencode` name resolves to `u2604dev`.
 
 ### Profiles
 
 | Profile | GHCR tag | AI tools |
 |---|---|---|
-| `ai-full` (default) | `latest` | Claude Code, Codex, OpenCode, Pi, extensions, herdr |
-| `standard` | `latest-standard` | OpenCode and Pi |
+| `ai-full` (default) | `latest` | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, idd + skills |
+| `standard` | `latest-standard` | OpenCode, Pi, asm, idd + skills |
 | `minimal` | `latest-minimal` | No global AI tools |
+
+Images install those npm CLIs at `@latest` at build time. `ai-full` and `standard` also install [`agent-skill-manager`](https://github.com/luongnv89/agent-skill-manager) (`asm`) and bake skills from [`luongnv89/idd`](https://github.com/luongnv89/idd) and [`luongnv89/skills`](https://github.com/luongnv89/skills) into `~/.agents/skills` (linked into the CLIs that profile ships). Host `--mount-claude` / `--mount-opencode` overlays those agent dirs.
+
+In a running container, run `update-ai-tools` (root or sudo) to upgrade CLIs and re-install those skill repos — that is the way to stop in-app “install new version” nags.
 
 Select a profile when pulling or building:
 
