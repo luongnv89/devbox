@@ -4,342 +4,221 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/luongnv89/docker-dev)](https://github.com/luongnv89/docker-dev/stargazers)
 
-# Start AI coding tools in disposable containers
+# Disposable devbox for AI coding
 
-`cdev` opens your project in a coding-ready Ubuntu container with Claude Code, Codex, OpenCode, Pi, and herdr already installed.
+A single Docker image — **devbox** — that ships Claude Code, Codex, OpenCode, Pi, herdr, and a full development toolkit inside a disposable Ubuntu 26.04 container. Drop into it, code, exit, and the container disappears.
 
-[**Install and start →**](#getting-started)
-
-## Getting Started
-
-Requirements: Docker Desktop or Docker Engine, Git, Bash, and curl.
-
-1. Install `cdev`:
+## Quick start
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/luongnv89/docker-dev/main/install.sh | bash
+# Pull the published image and start a disposable shell with your project mounted
+docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/devbox:latest zsh
 ```
 
-2. If `cdev` is not found, add its default install directory to `PATH`:
+That's it. Open an AI coding tool, edit files on the host, and exit when done.
+
+## Building locally
+
+Build from the repository root (the Dockerfile is at the root):
 
 ```bash
-export PATH="$HOME/.local/bin:$PATH"
+docker build -t devbox -f Dockerfile .
 ```
 
-3. Pull the default image and start a new container for the current project:
+Then run the locally built image:
 
 ```bash
-cdev run --pull --workspace "$PWD"
+docker run --rm -it -v "$PWD":/workspace devbox zsh
 ```
 
-4. Inside the container, start an AI coding tool:
+## What is included
 
-```bash
-pi
-```
-
-Exit the shell to remove the disposable container. Your project remains on the host and is mounted at `/workspace`.
-
-## How It Works
-
-```mermaid
-graph LR
-    A[Host project] -->|workspace mount| B[cdev]
-    B -->|pull or build| C[Ubuntu dev image]
-    D[Host AI config] -->|optional mount| B
-    C --> E[Disposable zsh container]
-    E --> F[Claude Code, Codex, OpenCode, Pi, herdr, asm]
-```
-
-`cdev` selects an image, mounts the workspace, and starts `zsh`. AI credentials stay outside the image and can be mounted from the host.
-
-## Use Existing AI Login State
-
-Mount only the configuration needed by your tool:
-
-| Tool | Start container | Run inside |
-|---|---|---|
-| Claude Code | `cdev run --pull -w "$PWD" --mount-claude` | `claude` |
-| Codex | `cdev run --pull -w "$PWD" --mount-codex` | `codex` |
-| OpenCode | `cdev run --pull -w "$PWD" --mount-opencode` | `opencode` |
-| Pi | `cdev run --pull -w "$PWD" --mount-pi` | `pi` |
-| herdr | `cdev run --pull -w "$PWD"` | `herdr` |
-| asm | `cdev run --pull -w "$PWD"` | `asm` |
-
-The `ai` preset mounts SSH, Claude, Codex, OpenCode, and Pi configuration together:
-
-```bash
-cdev run --preset ai --pull --workspace "$PWD"
-```
-
-Use the preset only when `~/.ssh`, `~/.claude`, `~/.codex`, and `~/.config/opencode` exist. A missing `~/.pi` directory is skipped.
-
-## Common Commands
-
-| Goal | Command |
+| Category | Contents |
 |---|---|
-| Show available images | `cdev list` |
-| Inspect paths and configuration | `cdev config` |
-| Build locally, then start | `cdev run --build -w "$PWD"` |
-| Pull the published image, then start | `cdev run --pull -w "$PWD"` |
-| Use the lean Debian image | `cdev run --pull --image devbox -w "$PWD" --mount-opencode` |
-| Build Ubuntu 24.04 or 22.04 locally | `docker build -t u2404dev -f u2404dev/Dockerfile .` |
-| Create a named container | `cdev run --pull --name my-dev -w "$PWD"` |
-| Re-enter a running named container | `docker exec -it my-dev zsh` |
-| Show every run option | `cdev run --help` |
+| OS | Ubuntu 26.04, zsh + Oh My Zsh + Starship prompt |
+| Languages | Node.js LTS + Corepack, Python 3.13 + uv |
+| Editors | Vim with NERDTree, fzf, gitgutter |
+| CLI tools | Git, GitHub CLI, jq, fd, ripgrep, bat, fzf, btop |
+| Docker | Docker CLI client (connect to host socket for full access) |
+| AI tools | Claude Code, Codex, OpenCode, Pi, herdr, agent-skill-manager |
+| Skills | Baked-in skills from [idd](https://github.com/luongnv89/idd) and [skills](https://github.com/luongnv89/skills) |
 
-`--build` and `--pull` cannot be used together.
+## Running containers
 
-## What Is Included
+### Ephemeral (default)
 
-| Capability | What you get |
-|---|---|
-| AI tools | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, and baked skills from [idd](https://github.com/luongnv89/idd) + [skills](https://github.com/luongnv89/skills) |
-| Terminal | zsh, Oh My Zsh, Starship, Vim, fzf, fd, jq |
-| Runtimes | Node.js LTS, Corepack, Python, pip, and uv |
-| Git workflow | Git, GitHub CLI, and optional read-only SSH mounting |
-| Docker workflow | Docker CLI with an opt-in host socket mount |
-| Architectures | Published `linux/amd64` and `linux/arm64` images |
-
-## Images and Profiles
-
-Only **two images are maintained and published** to GHCR (`:latest`, `ai-full`):
-
-| Image | Base | Python | Pull |
-|---|---|---|---|
-| `u2604dev` (default) | Ubuntu 26.04 | 3.13 | `cdev run --pull` |
-| `devbox` | Debian 13 slim | 3.13 | `cdev run --pull --image devbox` |
-
-The deprecated `u2604dev-opencode` name resolves to `u2604dev`.
-
-### Other images (build locally)
-
-`u2404dev` (Ubuntu 24.04) and `u2204dev` (Ubuntu 22.04) stay in the repo but are **not** published. Build them from the repository root (Dockerfiles copy files from `common/`):
+Each `docker run --rm` creates a disposable container that is removed when you exit:
 
 ```bash
-docker build -t u2404dev -f u2404dev/Dockerfile .
-docker build -t u2204dev -f u2204dev/Dockerfile .
+docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/devbox:latest zsh
 ```
 
-Then run with `cdev run --image u2404dev --build -w "$PWD"` or plain `docker run`:
+### Named (persistent)
+
+Give a container a name so you can re-enter it later:
 
 ```bash
-docker run --rm -it -v "$PWD":/workspace u2404dev zsh
+# Start a named container (no --rm)
+docker run -it -v "$PWD":/workspace --name my-dev ghcr.io/luongnv89/devbox:latest zsh
+
+# Re-enter later
+docker exec -it my-dev zsh
+
+# Remove when done
+docker rm my-dev
 ```
 
-### Profiles
+## Workspace mount
 
-CI publishes **`ai-full` only** (`:latest`). `standard` and `minimal` are local builds:
+The host project directory is mounted at **`/workspace`** inside the container:
 
-| Profile | How to get it | AI tools |
-|---|---|---|
-| `ai-full` (default) | `cdev run --pull` | Claude Code, Codex, OpenCode, Pi, herdr, pi-extensions, asm, idd + skills |
-| `standard` | `docker build --build-arg DEV_IMAGE_PROFILE=standard -t u2604dev:standard -f u2604dev/Dockerfile .` | OpenCode, Pi, asm, idd + skills |
-| `minimal` | `docker build --build-arg DEV_IMAGE_PROFILE=minimal -t u2604dev:minimal -f u2604dev/Dockerfile .` | No global AI tools |
+```bash
+-v "$PWD":/workspace
+```
 
-Images install those npm CLIs at `@latest` at build time. `ai-full` and `standard` also install [`agent-skill-manager`](https://github.com/luongnv89/agent-skill-manager) (`asm`) and bake skills from [`luongnv89/idd`](https://github.com/luongnv89/idd) and [`luongnv89/skills`](https://github.com/luongnv89/skills) into `~/.agents/skills` (linked into the CLIs that profile ships). Host `--mount-claude` / `--mount-opencode` overlays those agent dirs.
+All files created or edited inside the container appear on the host. The workspace is owned by **root** inside the container, so files you create will be root-owned on the host. To avoid this, build and run with a non-root user (see below).
 
-In a running container, run `update-ai-tools` (root or sudo) to upgrade CLIs and re-install those skill repos — that is the way to stop in-app “install new version” nags.
+## Agent configuration mounts
 
-## Authentication and Mounts
+Mount your host AI-agent configuration directories so the tools inside the container can authenticate and find your skills:
 
-Credentials are not stored in the images.
-
-| Flag | Host path | Container path |
+| Mount flag | Host path | Container path |
 |---|---|---|
 | `--mount-claude` | `~/.claude` | `/root/.claude` |
 | `--mount-codex` | `~/.codex` | `/root/.codex` |
 | `--mount-opencode` | `~/.config/opencode` | `/root/.config/opencode` |
 | `--mount-pi` | `~/.pi` | `/root/.pi` |
-| `--mount-ssh` | `~/.ssh` | `/root/.ssh` read-only |
 
-With `--nonroot`, these paths move under `/home/dev`. Use placeholders in documentation and never commit API keys.
+Agent skills directory:
 
-## Docker from Inside the Container
+| Mount flag | Host path | Container path |
+|---|---|---|
+| `--mount-agents` | `~/.agents` | `/root/.agents` |
 
-The image contains the Docker client, not a daemon. Mounting the host socket lets the container control the host Docker daemon:
+SSH keys (read-only):
 
-```bash
-cdev run --pull --workspace "$PWD" --mount-docker-socket
-```
+| Mount flag | Host path | Container path |
+|---|---|---|
+| `--mount-ssh` | `~/.ssh` | `/root/.ssh` (read-only) |
 
-Access to `/var/run/docker.sock` can start privileged containers and mount host paths. Enable it only for trusted projects. The `full` preset enables this mount in addition to all `ai` mounts.
-
-## Documentation
-
-| Topic | File |
-|---|---|
-| `cdev` reference | [cli/README.md](cli/README.md) |
-| Architecture and CI | [docs/architecture.md](docs/architecture.md) |
-| Development setup | [docs/development.md](docs/development.md) |
-| Troubleshooting | [docs/troubleshooting.md](docs/troubleshooting.md) |
-| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Security policy | [SECURITY.md](SECURITY.md) |
-| Changelog | [CHANGELOG.md](CHANGELOG.md) |
-
-<details>
-<summary>Plain Docker commands</summary>
-
-Authenticate to GHCR only if your Docker setup requires it:
+Example with all mounts:
 
 ```bash
-echo "${GH_PAT}" | docker login ghcr.io -u <github-username> --password-stdin
+docker run --rm -it \
+  -v "$PWD":/workspace \
+  -v "$HOME/.claude":/root/.claude \
+  -v "$HOME/.codex":/root/.codex \
+  -v "$HOME/.config/opencode":/root/.config/opencode \
+  -v "$HOME/.pi":/root/.pi \
+  -v "$HOME/.agents":/root/.agents \
+  -v "$HOME/.ssh":/root/.ssh:ro \
+  ghcr.io/luongnv89/devbox:latest zsh
 ```
 
-Pull the default profile:
+> **Security note:** Never commit API keys or credentials into the image. Mount them at runtime from the host only when needed.
+
+## Development ports
+
+When running a web or API server inside the container, publish ports to the host:
 
 ```bash
-docker pull ghcr.io/luongnv89/u2604dev:latest
+docker run --rm -it -p 3000:3000 -v "$PWD":/workspace ghcr.io/luongnv89/devbox:latest zsh
 ```
 
-Start a disposable shell with the current directory mounted:
+The service inside the container must listen on **`0.0.0.0`** (not `127.0.0.1`) to be reachable from the host:
 
 ```bash
-docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
+# Inside the container — correct
+node server.js        # if server binds to 0.0.0.0
+python -m http.server 3000 -b 0.0.0.0
+
+# Inside the container — wrong (host cannot reach)
+python -m http.server 3000   # binds to 127.0.0.1 only
 ```
 
-Pass an API key without storing it in the image:
+## Non-root containers
+
+By default the container runs as **root**. To avoid root-owned files in your workspace, build with a non-root user and pass the host UID/GID:
 
 ```bash
-docker run --rm -it -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" -v "$PWD":/workspace ghcr.io/luongnv89/u2604dev:latest zsh
+# Build with non-root support
+docker build --build-arg DEV_CREATE_NONROOT_USER=1 \
+             --build-arg DEV_UID=$(id -u) \
+             --build-arg DEV_GID=$(id -g) \
+             -t devbox -f Dockerfile .
+
+# Run as the host user
+docker run --rm -it -v "$PWD":/workspace -u $(id -u):$(id -g) devbox zsh
 ```
 
-Pull a commit-specific image by replacing `<git-sha>`:
+## Docker socket access
+
+The image includes the Docker CLI but not a daemon. Mounting the host socket lets the container control the host Docker daemon:
 
 ```bash
-docker pull ghcr.io/luongnv89/u2604dev:<git-sha>
+docker run --rm -it \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD":/workspace \
+  ghcr.io/luongnv89/devbox:latest zsh
 ```
 
-</details>
+> **Warning:** Docker socket access grants full control over the host Docker daemon — it can start privileged containers, mount host paths, and escalate to root. Only enable this for trusted projects.
 
-<details>
-<summary>Local builds and non-root containers</summary>
+## Updating AI tools
 
-Build from the repository root because Dockerfiles copy shared files from `common/`:
+Inside a running container, upgrade all baked-in AI CLIs to their latest versions:
 
 ```bash
-docker build -t my-dev-env -f u2604dev/Dockerfile .
+update-ai-tools
 ```
 
-Build the minimal profile:
+Run as root or with `sudo`. This stops in-app "install new version" prompts.
+
+## Authentication
+
+Pass API keys via environment variables without storing them in the image:
 
 ```bash
-docker build --build-arg DEV_IMAGE_PROFILE=minimal -t my-dev-env:minimal -f u2604dev/Dockerfile .
+docker run --rm -it \
+  -e ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}" \
+  -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
+  -v "$PWD":/workspace \
+  ghcr.io/luongnv89/devbox:latest zsh
 ```
 
-Run the locally built image:
+## Python and Node environments
 
-```bash
-docker run --rm -it -v "$PWD":/workspace my-dev-env zsh
-```
-
-Containers run as root by default. Build and run as the host UID/GID to avoid root-owned workspace files:
-
-```bash
-cdev run --build --nonroot --workspace "$PWD"
-```
-
-Published GHCR images remain root-by-default; non-root support requires a local or custom build.
-
-</details>
-
-<details>
-<summary>Node and Python environments</summary>
-
-Corepack is enabled for project-managed pnpm and Yarn versions:
-
-```bash
-pnpm install
-```
-
-```bash
-yarn install
-```
-
-Create a Python environment with uv:
+Create a Python virtual environment with uv:
 
 ```bash
 uv venv && source .venv/bin/activate
 ```
 
-Install Python dependencies:
+Install with corepack for project-managed package managers:
 
 ```bash
-uv pip install -r requirements.txt
+corepack enable
+pnpm install
+# or
+yarn install
 ```
 
-Distro `python3`, `pip`, and the `venv` and `activate` shell aliases remain available.
+## GitHub Container Registry
 
-</details>
-
-<details>
-<summary>Repository development and CI</summary>
-
-Fork the repository, clone your fork, and create a feature branch:
+Authenticate to GHCR if your Docker setup requires it:
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/docker-dev.git
+echo "${GH_PAT}" | docker login ghcr.io -u <github-username> --password-stdin
 ```
+
+Pull a specific image version:
 
 ```bash
-cd docker-dev
+docker pull ghcr.io/luongnv89/devbox:latest
+# or by commit SHA
+docker pull ghcr.io/luongnv89/devbox:<git-sha>
 ```
 
-```bash
-git checkout -b my-feature
-```
+---
 
-Install the repository pre-commit hook:
-
-```bash
-ln -sf ../../scripts/pre-commit.sh .git/hooks/pre-commit
-```
-
-Run checks directly:
-
-```bash
-./scripts/pre-commit.sh
-```
-
-The checks format shell scripts with shfmt, run ShellCheck and Hadolint, build `u2204dev` (`scripts/tasks/test.sh:11`), and remove temporary files. GitHub Actions builds **u2604dev** and **devbox** at `ai-full`, scans with Trivy, and publishes provenance attestations.
-
-To add an image, create `<image-name>/Dockerfile`, add `<image-name>/README.md`, update the image table, and follow [CONTRIBUTING.md](CONTRIBUTING.md#adding-a-new-image).
-
-Validate installation and environment runbooks:
-
-```bash
-./scripts/validate-cdev-install.sh --check
-```
-
-```bash
-./scripts/validate-dev-environment.sh --check
-```
-
-</details>
-
-<details>
-<summary>Project links and attribution</summary>
-
-- [Issues](https://github.com/luongnv89/docker-dev/issues) — bug reports and feature requests
-- [Discussions](https://github.com/luongnv89/docker-dev/discussions) — questions
-- [Code of Conduct](CODE_OF_CONDUCT.md)
-- Contact: luongnv89@gmail.com
-- Shell and editor components: [Oh My Zsh](https://ohmyz.sh/), [Starship](https://starship.rs/), and [Vim](https://www.vim.org/)
-- Container runtime: [Docker](https://www.docker.com/)
-
-</details>
-
-<details>
-<summary>Previous README</summary>
-
-The complete pre-rewrite README is preserved in [README.backup.md](README.backup.md).
-
-</details>
-
-## Start a Container
-
-```bash
-cdev run --pull --workspace "$PWD"
-```
-
-[**CLI reference →**](cli/README.md) · [**Troubleshooting →**](docs/troubleshooting.md) · [MIT licensed](LICENSE)
+[Contributing](CONTRIBUTING.md) · [Security policy](SECURITY.md) · [Troubleshooting](docs/troubleshooting.md) · [MIT licensed](LICENSE)
