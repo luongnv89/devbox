@@ -1,12 +1,13 @@
 # Contributing to docker-dev
 
-Thank you for your interest in contributing to docker-dev! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to docker-dev! This document provides
+guidelines and instructions for contributing to this single-root Dockerfile devbox
+image project.
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
 - [Development Workflow](#development-workflow)
-- [Adding a New Image](#adding-a-new-image)
 - [Pull Request Process](#pull-request-process)
 - [Code Style](#code-style)
 - [Testing](#testing)
@@ -54,22 +55,26 @@ Before committing, run the pre-commit checks:
 ```
 
 This will:
+
 - Format shell scripts with shfmt
 - Lint shell scripts with ShellCheck
 - Lint Dockerfiles with Hadolint
-- Build the u2604dev image to verify Dockerfile validity
+- Build the u2204dev image to verify Dockerfile validity
 - Clean up temporary files
 
 ### Building Images Locally
 
-Build any image locally for testing:
+Build the main devbox image locally for testing:
 
 ```bash
-# Build a specific image
-docker build -t my-test -f u2604dev/Dockerfile .
+# Build the root Dockerfile (Ubuntu 26.04 dev image)
+docker build -t my-devbox -f Dockerfile .
+
+# Build the lean devbox image (Debian 13)
+docker build -t my-devbox-debian -f devbox/Dockerfile .
 
 # Run interactive shell
-docker run --rm -it my-test zsh
+docker run --rm -it my-devbox zsh
 ```
 
 ### Testing Changes
@@ -77,52 +82,22 @@ docker run --rm -it my-test zsh
 Always test your changes by building the relevant image:
 
 ```bash
-# Test u2604dev changes
-docker build -t test-u2604dev -f u2604dev/Dockerfile .
+# Build and test the root Dockerfile
+docker build -t test-devbox -f Dockerfile .
 
-# Test all images
-for dir in u2204dev u2404dev u2604dev devbox; do
-  docker build -t "test-${dir}" -f "${dir}/Dockerfile" .
-done
+# Build and test the lean devbox image
+docker build -t test-devbox-debian -f devbox/Dockerfile .
+
+# Run a quick smoke test
+docker run --rm -it test-devbox zsh -c 'echo "OK"'
 ```
-
-## Adding a New Image
-
-To add a new development environment image:
-
-1. Create a new directory with a descriptive image name:
-
-```bash
-mkdir -p <image-name>
-```
-
-2. Create a Dockerfile in the new directory. Ubuntu images can use the shared
-   Ubuntu installers; distro-specific images should use a dedicated base
-   installer and reuse only compatible shared steps.
-
-3. Create a `README.md` with:
-   - Image description
-   - Features list
-   - Build instructions
-   - Usage instructions
-
-4. Create configuration files:
-   - `starship.toml` (if using Starship)
-   - `.vimrc` (if using Vim)
-
-5. Update the main `README.md` to include your new image
-
-6. If GitHub Actions should publish it, add it to the build matrix in
-   `.github/workflows/build-images.yml` (CI currently publishes
-   **u2604dev** and **devbox** at the **ai-full** profile only; other
-   images/profiles are local `cdev build` / `docker build`)
 
 ## Pull Request Process
 
 ### Before Submitting
 
 1. Ensure all pre-commit checks pass
-2. Test your changes locally
+2. Test your changes locally by building the image
 3. Update documentation as needed
 4. Commit your changes with clear commit messages
 
@@ -137,6 +112,7 @@ mkdir -p <image-name>
 ```
 
 Types:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation only
@@ -146,8 +122,9 @@ Types:
 - `chore`: Maintenance
 
 Example:
+
 ```
-feat(u2604dev): Add Python 3.13 support
+feat(devbox): Add Python 3.13 support
 
 - Install Python 3.13 alongside existing Python versions
 - Set Python 3.13 as default
@@ -189,31 +166,42 @@ Closes #123
 
 ## Image build verify modes (`AI_VERIFY_MODE`)
 
-`common/install-ai-tools.sh` runs in a **dedicated Docker layer** (after apt/base setup) so bumps to AI tooling do not invalidate cached base layers.
+`common/install-ai-tools.sh` runs in a **dedicated Docker layer** (after apt/base
+setup) so bumps to AI tooling do not invalidate cached base layers.
 
-| Mode | When to use | Behavior |
-|------|-------------|----------|
+| Mode     | When to use                        | Behavior                                                                                         |
+|----------|------------------------------------|--------------------------------------------------------------------------------------------------|
 | `lenient` (default) | Local `docker build` | Hard-fail on missing core tools (`git`, `node`, `opencode`, `pi`, …). For **ai-full**, missing `claude` / `codex` on `PATH` after `npm install -g` logs a note only (runtime mounts may supply them). |
-| `strict` | CI (`build-images.yml`) and release checks | Same as lenient, plus **ai-full** builds **fail** if `claude` or `codex` is not on `PATH` after global install. |
+| `strict` | CI and release checks | Same as lenient, plus **ai-full** builds **fail** if `claude` or `codex` is not on `PATH` after global install. |
 
 ```bash
 # Local strict check (matches CI):
-docker build --build-arg AI_VERIFY_MODE=strict -f u2604dev/Dockerfile .
+docker build --build-arg AI_VERIFY_MODE=strict -f Dockerfile .
 ```
-
-`standard` / `minimal` profiles always verify the tools they install; strict vs lenient only changes optional shim handling on **ai-full**.
 
 ## Global npm supply-chain checks
 
-- **CI:** `scripts/verify-ai-globals-audit.sh` runs on every workflow (resolves **latest** versions of the AI npm packages, prints the full `npm audit` report, and **fails on critical** severity). **High** findings are logged; they do not block the workflow. This covers **transitive npm vulnerabilities** in current latest AI CLIs; it does not replace Trivy.
-- **Transient registry errors in CI:** occasional `auth.docker.io` 502 responses during `docker/build-push-action` are infrastructure flakes. Re-run failed matrix jobs (`gh run rerun <run-id> --failed`) rather than changing image code.
-- **Images:** Published **ai-full** images on `main` are still scanned with **Trivy** (OS and installed packages in the image). Use both gates: audit at build time, Trivy after push.
+- **CI:** `scripts/verify-ai-globals-audit.sh` runs on every workflow (resolves
+  **latest** versions of the AI npm packages, prints the full `npm audit` report,
+  and **fails on critical** severity). **High** findings are logged; they do not
+  block the workflow. This covers **transitive npm vulnerabilities** in current
+  latest AI CLIs; it does not replace Trivy.
+- **Transient registry errors in CI:** occasional `auth.docker.io` 502 responses
+  during `docker/build-push-action` are infrastructure flakes. Re-run failed
+  matrix jobs (`gh run rerun <run-id> --failed`) rather than changing image code.
+- **Images:** Published images on `main` are still scanned with **Trivy** (OS and
+  installed packages in the image). Use both gates: audit at build time, Trivy
+  after push.
 
 ## AI CLI versions (always latest)
 
-Dev images install global AI CLIs from `common/install-ai-tools.sh` at **npm `@latest`** (`standard`: OpenCode + Pi + `agent-skill-manager`; `ai-full`: also Claude Code, Codex, pi-extensions, herdr). `minimal` skips AI npm CLIs but still ships `/usr/local/bin/update-ai-tools`.
+Images install global AI CLIs from `common/install-ai-tools.sh` at **npm
+`@latest`** (`standard`: OpenCode + Pi + `agent-skill-manager`; `ai-full`: also
+Claude Code, Codex, pi-extensions, herdr). `minimal` skips AI npm CLIs but still
+ships `/usr/local/bin/update-ai-tools`.
 
-CI and `cdev build` pass `AI_TOOLS_CACHEBUST` so the AI layer is not served from a stale Docker cache.
+CI and `cdev build` pass `AI_TOOLS_CACHEBUST` so the AI layer is not served from
+a stale Docker cache.
 
 Inside a running container (as root or via sudo):
 
@@ -221,16 +209,20 @@ Inside a running container (as root or via sudo):
 update-ai-tools
 ```
 
-That upgrades the same package set as image build, re-runs `asm install` for `github:luongnv89/idd` and `github:luongnv89/skills`, and is the way to silence in-app “install new version” nags without rebuilding.
+That upgrades the same package set as image build, re-runs `asm install` for
+`github:luongnv89/idd` and `github:luongnv89/skills`, and is the way to silence
+in-app "install new version" nags without rebuilding.
 
 Packages (always `@latest`):
 
-| Profile | npm packages |
-|----------|-------------|
+| Profile  | npm packages                                                        |
+|----------|---------------------------------------------------------------------|
 | `standard` | `opencode-ai`, `@mariozechner/pi-coding-agent`, `agent-skill-manager` |
-| `ai-full` | those plus `@anthropic-ai/claude-code`, `@openai/codex` |
+| `ai-full`  | those plus `@anthropic-ai/claude-code`, `@openai/codex`             |
 
-`pi install npm:…` extensions and `herdr` / `pi-extensions` installers follow their upstream install scripts. Skills are installed with `asm` into `~/.agents/skills` and linked into the CLIs the profile ships.
+`pi install npm:…` extensions and `herdr` / `pi-extensions` installers follow
+their upstream install scripts. Skills are installed with `asm` into
+`~/.agents/skills` and linked into the CLIs the profile ships.
 
 ## Testing
 
@@ -247,7 +239,7 @@ The project includes:
 Before submitting:
 
 1. Run `./scripts/pre-commit.sh`
-2. Build the modified image(s) locally
+2. Build the modified image locally
 3. Verify the container starts and shell is accessible
 
 ## Documentation
@@ -271,6 +263,6 @@ When adding features:
 
 ## Questions?
 
-- Check existing [Issues](../../issues)
+- Check existing [Issues](https://github.com/luongnv89/docker-dev/issues)
 - Open a new issue for bugs or feature requests
-- Start a [Discussion](../../discussions) for questions
+- Start a [Discussion](https://github.com/luongnv89/docker-dev/discussions) for questions
