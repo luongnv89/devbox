@@ -2,6 +2,7 @@
 
 [![Build and Publish devbox](https://github.com/luongnv89/devbox/actions/workflows/devbox.yml/badge.svg)](https://github.com/luongnv89/devbox/actions/workflows/devbox.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-1.0.0-informational.svg)](https://github.com/luongnv89/devbox/releases/tag/v1.0.0)
 
 # devbox — single dev container
 

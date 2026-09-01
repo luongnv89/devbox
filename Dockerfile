@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:26.04
 
-ARG BUILD_VERSION=dev
+ARG BUILD_VERSION=1.0.0
 
 LABEL maintainer="luongnv89"
 LABEL description="devbox — single dev container for Node.js, Python and AI coding agents"
