@@ -270,7 +270,8 @@ else
 fi
 echo "Shell: Zsh + Starship + Oh My Zsh plugins"
 echo "Editor: Vim with plugins"
-if command -v opencode >/dev/null 2>&1; then echo "AI: opencode $(opencode --version 2>/dev/null | head -1)"; fi
+if command -v opencode2 >/dev/null 2>&1; then echo "AI: opencode2 $(opencode2 --version 2>/dev/null | head -1)"; else echo "AI: opencode2 not installed"; fi
+if command -v opencode >/dev/null 2>&1; then echo "AI: WARNING old opencode still present $(opencode --version 2>/dev/null | head -1) — should be absent" >&2; fi
 if command -v pi >/dev/null 2>&1; then echo "AI: pi $(pi --version 2>/dev/null | head -1)"; fi
 echo "$PY_VER"
 if command -v uv >/dev/null 2>&1; then
@@ -286,9 +287,9 @@ echo ""
 ZSHRC_EOF
     mkdir -p /workspace && echo "root" > /etc/docker-dev-run-as
 
-# ---------- AI tools: preserve u2604dev's AI setup (opencode-ai at latest, pi, asm, herdr) ----------
+# ---------- AI tools: devbox AI setup (opencode2 via @opencode-ai/cli@beta, pi, asm, herdr) ----------
 # This layer is intentionally separate so bumps to npm@latest do not invalidate the base layer.
-# Issue #49 will replace opencode-ai with @opencode-ai/cli@beta (opencode2) in a focused follow-up.
+# Replaces legacy opencode-ai (opencode) with @opencode-ai/cli@beta (opencode2) per Issue #49.
 ARG DEV_IMAGE_PROFILE=ai-full
 ARG AI_VERIFY_MODE=lenient
 ARG AI_TOOLS_CACHEBUST=0
@@ -321,33 +322,35 @@ install_asm_skills() { if ! command -v asm >/dev/null 2>&1; then echo "[AI] Warn
     local repo; for repo in "${AI_ASM_REPOS[@]}"; do echo "[AI] asm install ${repo} --all -p agents -s global"; asm install "$repo" --all -p agents -s global -y --force || echo "[AI] Warning: asm install ${repo} failed (non-fatal)" >&2; done
     if [ ! -d "${HOME}/.agents/skills" ]; then return 0; fi
     local tool; for tool in "$@"; do if [ "$tool" = pi ]; then link_pi_skills; continue; fi; echo "[AI] asm link ${HOME}/.agents/skills → ${tool}"; asm link "${HOME}/.agents/skills" -p "$tool" -f || echo "[AI] Warning: asm link to ${tool} failed (non-fatal)" >&2; done; }
-if [ "$PROFILE" = "standard" ]; then npm_latest opencode-ai @mariozechner/pi-coding-agent agent-skill-manager; if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi; install_asm_skills opencode pi; elif [ "$PROFILE" = "ai-full" ]; then npm_latest @anthropic-ai/claude-code @openai/codex opencode-ai @mariozechner/pi-coding-agent agent-skill-manager; if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi; echo "[AI] Installing luongnv89/pi-extensions..."; curl -fsSL https://raw.githubusercontent.com/luongnv89/pi-extensions/main/install.sh | bash -s -- --auto || true; echo "[AI] Installing herdr..."; curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin bash || echo "[AI] Warning: herdr install failed (non-fatal)" >&2; install_asm_skills claude opencode pi codex; fi
-for tool in opencode pi asm; do if ! command -v "$tool" >/dev/null 2>&1; then echo "[AI] Missing expected command: $tool" >&2; exit 1; fi; done
+if [ "$PROFILE" = "standard" ]; then npm install -g @opencode-ai/cli@beta && echo "[AI] @opencode-ai/cli@beta installed (standard)" && npm list -g @opencode-ai/cli --depth=0 2>&1 | head -n 20; npm_latest @mariozechner/pi-coding-agent agent-skill-manager; if ! command -v opencode2 >/dev/null 2>&1; then echo "[AI] opencode2 not found after installing @opencode-ai/cli@beta" >&2; exit 1; fi; opencode2 --version; if command -v opencode >/dev/null 2>&1 && npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package still present (should be absent)" >&2; npm uninstall -g opencode-ai || true; fi; if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi; install_asm_skills opencode pi; elif [ "$PROFILE" = "ai-full" ]; then npm install -g @opencode-ai/cli@beta && echo "[AI] @opencode-ai/cli@beta installed (ai-full)" && npm list -g @opencode-ai/cli --depth=0 2>&1 | head -n 20; npm_latest @anthropic-ai/claude-code @openai/codex @mariozechner/pi-coding-agent agent-skill-manager; if ! command -v opencode2 >/dev/null 2>&1; then echo "[AI] opencode2 not found after installing @opencode-ai/cli@beta" >&2; exit 1; fi; opencode2 --version; if command -v opencode >/dev/null 2>&1 && npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package still present (should be absent)" >&2; npm uninstall -g opencode-ai || true; fi; if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi; echo "[AI] Installing luongnv89/pi-extensions..."; curl -fsSL https://raw.githubusercontent.com/luongnv89/pi-extensions/main/install.sh | bash -s -- --auto || true; echo "[AI] Installing herdr..."; curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin bash || echo "[AI] Warning: herdr install failed (non-fatal)" >&2; install_asm_skills claude opencode pi codex; fi
+for tool in opencode2 pi asm; do if ! command -v "$tool" >/dev/null 2>&1; then echo "[AI] Missing expected command: $tool" >&2; exit 1; fi; done
+if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package must be absent (found opencode-ai)" >&2; exit 1; fi
 for optional_cmd in claude codex; do if ! command -v "$optional_cmd" >/dev/null 2>&1; then msg="[AI] ${optional_cmd} CLI not on PATH after global npm install"; if [ "$AI_VERIFY_MODE" = "strict" ] || [ "$PROFILE" = "ai-full" ] && [ "$AI_VERIFY_MODE" = "strict" ]; then echo "${msg} (strict verify — failing build)" >&2; exit 1; fi; echo "[AI] Note: ${optional_cmd} CLI not on PATH (lenient — mount ~/.${optional_cmd} at runtime or use npx)"; fi; done
 echo "[AI] Tooling install complete (${PROFILE})."
 UPDATER_EOF
     chmod 0755 /usr/local/bin/update-ai-tools && \
     printf '%s\n' "${DEV_IMAGE_PROFILE}" > /etc/docker-dev-ai-profile && \
-    # npm latest installs for parity with u2604dev (preserved opencode-ai; Issue #49 replaces with beta)
+    # npm installs: @opencode-ai/cli@beta (opencode2) replaces legacy opencode-ai
     if [ "${DEV_IMAGE_PROFILE}" = "minimal" ]; then \
         echo "[AI] minimal profile — skipping global AI npm CLIs"; \
     elif [ "${DEV_IMAGE_PROFILE}" = "standard" ]; then \
-        echo "[AI] npm install -g opencode-ai @mariozechner/pi-coding-agent agent-skill-manager@latest" && \
-        npm install -g opencode-ai@latest @mariozechner/pi-coding-agent@latest agent-skill-manager@latest && \
+        echo "[AI] npm install -g @opencode-ai/cli@beta @mariozechner/pi-coding-agent agent-skill-manager@latest" && \
+        npm install -g @opencode-ai/cli@beta && echo "[AI] @opencode-ai/cli@beta@$(npm list -g @opencode-ai/cli --depth=0 2>/dev/null | grep @opencode-ai/cli | sed 's/.*@//')" && npm list -g @opencode-ai/cli --depth=0 2>&1 | head -n 20 && opencode2 --version && if ! command -v opencode2 >/dev/null 2>&1; then echo "[AI] opencode2 not found after installing @opencode-ai/cli@beta" >&2; exit 1; fi && if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Removing old opencode-ai package (should be absent)" >&2; npm uninstall -g opencode-ai || true; fi && npm install -g @mariozechner/pi-coding-agent@latest agent-skill-manager@latest && \
         if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi && \
         if command -v asm >/dev/null 2>&1; then \
             for repo in github:luongnv89/idd github:luongnv89/skills; do asm install "$repo" --all -p agents -s global -y --force || echo "[AI] Warning: asm install $repo failed (non-fatal)" >&2; done; \
             if [ -d /root/.agents/skills ]; then \
-                for tool in opencode pi; do \
+                for tool in opencode2 pi; do \
                     if [ "$tool" = pi ]; then mkdir -p /root/.pi/skills; for s in /root/.agents/skills/*; do [ -d "$s" ] || continue; ln -sfn "$s" "/root/.pi/skills/$(basename "$s")"; done; echo "[AI] Linked skills into /root/.pi/skills"; continue; fi; \
                     asm link /root/.agents/skills -p "$tool" -f || echo "[AI] Warning: asm link to $tool failed (non-fatal)" >&2; \
                 done; \
             fi; \
         fi && \
-        for cmd in git vim zsh starship node npm python3 opencode pi asm; do if ! command -v "$cmd" >/dev/null 2>&1; then echo "[AI] Missing expected command: $cmd" >&2; exit 1; fi; done; \
+        for cmd in git vim zsh starship node npm python3 opencode2 pi asm; do if ! command -v "$cmd" >/dev/null 2>&1; then echo "[AI] Missing expected command: $cmd" >&2; exit 1; fi; done; \
+        if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package is still installed (must be absent)" >&2; exit 1; fi; \
     else \
-        echo "[AI] npm install -g @anthropic-ai/claude-code @openai/codex opencode-ai @mariozechner/pi-coding-agent agent-skill-manager@latest" && \
-        npm install -g @anthropic-ai/claude-code@latest @openai/codex@latest opencode-ai@latest @mariozechner/pi-coding-agent@latest agent-skill-manager@latest && \
+        echo "[AI] npm install -g @anthropic-ai/claude-code @openai/codex @opencode-ai/cli@beta @mariozechner/pi-coding-agent agent-skill-manager@latest" && \
+        npm install -g @opencode-ai/cli@beta && echo "[AI] @opencode-ai/cli@beta@$(npm list -g @opencode-ai/cli --depth=0 2>/dev/null | grep @opencode-ai/cli | sed 's/.*@//')" && npm list -g @opencode-ai/cli --depth=0 2>&1 | head -n 20 && opencode2 --version && if ! command -v opencode2 >/dev/null 2>&1; then echo "[AI] opencode2 not found after installing @opencode-ai/cli@beta" >&2; exit 1; fi && if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Removing old opencode-ai package (should be absent)" >&2; npm uninstall -g opencode-ai || true; fi && npm install -g @anthropic-ai/claude-code@latest @openai/codex@latest @mariozechner/pi-coding-agent@latest agent-skill-manager@latest && \
         if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi && \
         echo "[AI] Installing luongnv89/pi-extensions..."; curl -fsSL https://raw.githubusercontent.com/luongnv89/pi-extensions/main/install.sh | bash -s -- --auto || true && \
         echo "[AI] Installing herdr..."; curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin bash || echo "[AI] Warning: herdr install failed (non-fatal)" >&2 && \
@@ -360,7 +363,8 @@ UPDATER_EOF
                 done; \
             fi; \
         fi && \
-        for cmd in git vim zsh starship node npm python3 opencode pi asm; do if ! command -v "$cmd" >/dev/null 2>&1; then echo "[AI] Missing expected command: $cmd" >&2; exit 1; fi; done; \
+        for cmd in git vim zsh starship node npm python3 opencode2 pi asm; do if ! command -v "$cmd" >/dev/null 2>&1; then echo "[AI] Missing expected command: $cmd" >&2; exit 1; fi; done;
+        if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package must be absent" >&2; exit 1; fi; \
         for optional_cmd in claude codex; do if ! command -v "$optional_cmd" >/dev/null 2>&1; then msg="[AI] ${optional_cmd} CLI not on PATH after global npm install"; if [ "${AI_VERIFY_MODE}" = "strict" ]; then echo "${msg} (strict verify — failing build)" >&2; exit 1; fi; echo "[AI] Note: ${optional_cmd} CLI not on PATH (lenient — mount ~/.${optional_cmd} at runtime or use npx)"; fi; done; \
     fi && \
     echo "[AI] Tooling install complete (${DEV_IMAGE_PROFILE})."
