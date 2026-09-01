@@ -1,52 +1,61 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:26.04
 
+ARG BUILD_VERSION=dev
+
 LABEL maintainer="luongnv89"
 LABEL description="devbox — single dev container for Node.js, Python and AI coding agents"
+LABEL version="${BUILD_VERSION}"
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV DEV_IMAGE_NAME=devbox
-ENV UBUNTU_VERSION=26.04
-ENV LANG=en_US.UTF-8
-ENV LANGUAGE=en_US:en
-ENV LC_ALL=en_US.UTF-8
-ENV TZ=Etc/UTC
-ENV SHELL=/usr/bin/zsh
-ENV PATH="/root/.local/bin:/usr/local/bin:${PATH}"
+# Build-time only: does not leak into the running container's environment.
+ARG DEBIAN_FRONTEND=noninteractive
 
-# ---------- Base: apt, CLI tools, locale, Node, Corepack, uv ----------
+ENV DEV_IMAGE_NAME=devbox \
+    UBUNTU_VERSION=26.04 \
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8 \
+    TZ=Etc/UTC \
+    SHELL=/usr/bin/zsh \
+    PIP_BREAK_SYSTEM_PACKAGES=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PATH="/root/.local/bin:/usr/local/bin:${PATH}"
+
+# ---------- Base: apt, CLI tools, locale, Node, Corepack, GitHub CLI ----------
+# Single layer: one apt index fetch for the distro packages, NodeSource and gh.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         git git-lfs openssh-client vim wget curl zsh \
-        ca-certificates gnupg lsb-release software-properties-common \
-        build-essential locales unzip fontconfig btop ripgrep bat \
+        ca-certificates gnupg \
+        build-essential locales unzip btop ripgrep bat \
         jq tzdata fzf fd-find \
         python3 python3-venv python3-dev python3-pip \
         sudo gosu && \
-    # fd / bat symlinks (Ubuntu names)
+    # fd / bat symlinks (Ubuntu renames both binaries)
     if [ -x /usr/bin/fdfind ] && [ ! -e /usr/bin/fd ]; then ln -sf /usr/bin/fdfind /usr/bin/fd; fi && \
     ln -sf /usr/bin/batcat /usr/bin/bat 2>/dev/null || true && \
     git lfs install && \
+    # Bind-mounted repos are owned by the host UID; without this every git
+    # command in /workspace fails with "detected dubious ownership".
+    git config --global --add safe.directory '*' && \
     locale-gen en_US.UTF-8 && \
-    # Node.js LTS + Corepack
+    # Node.js LTS + Corepack (pnpm/yarn)
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - && \
-    apt-get update && apt-get install -y --no-install-recommends nodejs && \
-    if command -v corepack >/dev/null 2>&1; then corepack enable; fi && \
-    # Clean apt cache
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# GitHub CLI
-RUN install -d -m 0755 /etc/apt/keyrings && \
+    # GitHub CLI apt repository
+    install -d -m 0755 /etc/apt/keyrings && \
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
     chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list && \
-    apt-get update && apt-get install -y --no-install-recommends gh && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends nodejs gh && \
+    if command -v corepack >/dev/null 2>&1; then corepack enable; fi && \
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# uv (Fast Python Package Manager)
+# uv (fast Python package manager)
 RUN curl -fsSL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh && uv --version
 
-# Oh My Zsh + plugins + vim-plug + fonts
+# ---------- Shell: Oh My Zsh + plugins, vim + vim-plug ----------
 RUN <<'EOF'
 set -e
 # Install Oh My Zsh
@@ -64,7 +73,7 @@ filetype off
 call plug#begin('~/.vim/plugged')
 Plug 'preservim/nerdtree'
 Plug 'airblade/vim-gitgutter'
-Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
+Plug 'junegunn/fzf'
 Plug 'junegunn/fzf.vim'
 Plug 'tpope/vim-surround'
 Plug 'jiangmiao/auto-pairs'
@@ -92,58 +101,44 @@ VIMRC_EOF
 
 curl -fLo /root/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 TERM=xterm-256color vim +'PlugInstall --sync' +qa || true
+# Fail the build if plugin installation produced nothing usable.
+[ -d /root/.vim/plugged/nerdtree ] || { echo "[shell] Error: vim plugin install failed" >&2; exit 1; }
 
-# JetBrainsMono Nerd Font (extract only essential regular and bold fonts to save ~100MB)
-mkdir -p /usr/share/fonts/nerd-fonts
-wget -O /tmp/JetBrainsMono.zip https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
-unzip -qo /tmp/JetBrainsMono.zip "*Regular.ttf" "*Bold.ttf" -d /usr/share/fonts/nerd-fonts/ || unzip -qo /tmp/JetBrainsMono.zip -d /usr/share/fonts/nerd-fonts/
-fc-cache -fv && rm -f /tmp/JetBrainsMono.zip
-
-# Default Shell setup
+# Default shell setup. zsh-syntax-highlighting must be sourced LAST (upstream
+# requirement) or it silently fails to highlight.
 chsh -s "$(which zsh)"
-sed -i 's/plugins=(git)/plugins=(git zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc
+# Robustly inject plugins: target the plugins=() line regardless of existing content.
+# Extract existing plugins (if any), append our set, and replace in-place.
+if grep -q '^plugins=' /root/.zshrc; then
+  existing="$(grep '^plugins=' /root/.zshrc | sed 's/^plugins=(//;s/)$//')"
+  # Deduplicate: keep existing + append new ones, then collapse back.
+  all_plugins="${existing} npm pip python zsh-autosuggestions zsh-completions zsh-syntax-highlighting"
+  # Collapse duplicates while preserving order
+  deduped="$(echo "$all_plugins" | tr ' ' '\n' | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//')"
+  sed -i "s/^plugins=.*/plugins=(${deduped})/" /root/.zshrc
+else
+  echo 'plugins=(git npm pip python zsh-autosuggestions zsh-completions zsh-syntax-highlighting)' >> /root/.zshrc
+fi
 
 cat > /root/.shell-cli-extras.zsh <<'EXTRAS_EOF'
 # Core sandbox CLI utilities (jq, fzf, fd, gh)
-if [ -f /usr/share/fzf/shell/key-bindings.zsh ]; then
-  source /usr/share/fzf/shell/key-bindings.zsh
-  source /usr/share/fzf/shell/completion.zsh
+# fzf >= 0.48 ships its own shell integration; Debian/Ubuntu keeps the legacy
+# snippets under /usr/share/doc/fzf/examples (NOT /usr/share/fzf/shell).
+if command -v fzf >/dev/null 2>&1 && fzf --zsh >/dev/null 2>&1; then
+  eval "$(fzf --zsh)"
+elif [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]; then
+  source /usr/share/doc/fzf/examples/key-bindings.zsh
+  [ -f /usr/share/doc/fzf/examples/completion.zsh ] && source /usr/share/doc/fzf/examples/completion.zsh
 fi
 export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git 2>/dev/null'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git 2>/dev/null'
-alias ff='fzf'
-alias jj='jq'
 EXTRAS_EOF
 
 cat >>/root/.zshrc <<'ZSHRC_EOF'
 
-# Development-friendly aliases
-alias ls='ls --color=auto'
-alias ll='ls -lah'
-alias la='ls -A'
-alias l='ls -CF'
-alias ..='cd ..'
-alias ...='cd ../..'
-alias grep='grep --color=auto'
-alias cat='bat --paging=never'
-alias catp='bat'
-alias top='btop'
-
-# Helpers
+# fzf / fd / jq integration
 source /root/.shell-cli-extras.zsh
-
-# Git aliases
-alias gs='git status'
-alias ga='git add'
-alias gc='git commit'
-alias gp='git push'
-alias gl='git log --oneline --graph --decorate'
-alias gd='git diff'
-
-# Python virtual environment helpers
-alias venv='python3 -m venv venv'
-alias activate='source venv/bin/activate'
 
 # History settings
 export HISTFILE=~/.zsh_history
@@ -153,8 +148,6 @@ setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_FIND_NO_DUPS
 setopt HIST_SAVE_NO_DUPS
 setopt SHARE_HISTORY
-setopt APPEND_HISTORY
-setopt INC_APPEND_HISTORY
 
 # Autocomplete & directory navigation
 setopt CORRECT
@@ -162,16 +155,12 @@ setopt AUTO_CD
 setopt AUTO_PUSHD
 setopt PUSHD_IGNORE_DUPS
 
-# Welcome message
-echo ""
-echo "🚀 Welcome to devbox!"
-if command -v python3 >/dev/null 2>&1; then echo "🐍 $(python3 --version)"; fi
-if command -v node >/dev/null 2>&1; then echo "🟢 Node.js $(node --version)"; fi
-if command -v uv >/dev/null 2>&1; then echo "⚡ uv $(uv --version 2>/dev/null | head -1)"; fi
-if command -v opencode2 >/dev/null 2>&1; then echo "🤖 opencode2 $(opencode2 --version 2>/dev/null | head -1)"; fi
-if command -v pi >/dev/null 2>&1; then echo "🥧 pi $(pi --version 2>/dev/null | head -1)"; fi
-if command -v herdr >/dev/null 2>&1; then echo "🐑 herdr $(herdr --version 2>/dev/null | head -1)"; fi
-echo ""
+# Welcome message (versions are baked at build time — see devbox-genmotd).
+# Only on a real terminal: `docker exec my-dev zsh -ic "cat file"` must not get
+# a banner prepended to its stdout.
+if [ -t 1 ] && [ -f /etc/devbox-motd ]; then
+    cat /etc/devbox-motd
+fi
 ZSHRC_EOF
 
 # Strip .git folders from cloned plugin repos to save space
@@ -182,14 +171,13 @@ EOF
 
 # ---------- AI Tools: opencode2, pi (+ extensions), herdr ----------
 ARG AI_VERIFY_MODE=strict
-ARG AI_TOOLS_CACHEBUST=0
 
 RUN <<'EOF'
 set -e
 export HOME=/root
 export PATH="/root/.local/bin:/usr/local/bin:${PATH}"
 
-echo "[AI] Installing AI tools (opencode2, pi, herdr)..."
+echo "[AI] Installing AI tools..."
 
 # 1. opencode2
 npm install -g @opencode-ai/cli@beta
@@ -222,8 +210,31 @@ if [ "${AI_VERIFY_MODE}" = "strict" ]; then
     done
 fi
 
-# Updater script
 mkdir -p /usr/local/bin
+
+# MOTD generator: resolves tool versions ONCE at build time so interactive
+# shells do not pay ~550ms of subprocess spawns on every startup.
+cat > /usr/local/bin/devbox-genmotd <<MOTD_EOF
+#!/usr/bin/env bash
+# Regenerate /etc/devbox-motd with the currently installed tool versions.
+export PATH="/root/.local/bin:/usr/local/bin:\${PATH}"
+{
+    echo ""
+    echo "🚀 Welcome to devbox! [${BUILD_VERSION}]"
+    command -v python3   >/dev/null 2>&1 && echo "🐍 $(python3 --version)"
+    command -v node      >/dev/null 2>&1 && echo "🟢 Node.js $(node --version)"
+    # These three already print their own name, so do not prefix it again.
+    command -v uv        >/dev/null 2>&1 && echo "⚡ $(uv --version 2>/dev/null | head -1)"
+    command -v opencode2 >/dev/null 2>&1 && echo "🤖 $(opencode2 --version 2>/dev/null | head -1)"
+    command -v herdr     >/dev/null 2>&1 && echo "🐑 $(herdr --version 2>/dev/null | head -1)"
+    command -v pi        >/dev/null 2>&1 && echo "🥧 pi $(pi --version 2>/dev/null | head -1)"
+    echo ""
+} > /etc/devbox-motd
+MOTD_EOF
+chmod 0755 /usr/local/bin/devbox-genmotd
+/usr/local/bin/devbox-genmotd
+
+# Updater script
 cat > /usr/local/bin/update-ai-tools <<'UPDATER_EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -241,6 +252,8 @@ curl -fsSL https://pi.dev/install.sh | sh || true
 if command -v pi >/dev/null 2>&1; then
     pi install npm:opencode-pi npm:statusline-pi npm:timestamp-pi npm:pi-subagents || true
 fi
+# Keep the login banner in sync with the freshly installed versions.
+command -v devbox-genmotd >/dev/null 2>&1 && devbox-genmotd
 echo "[AI] All AI tools updated."
 UPDATER_EOF
 chmod 0755 /usr/local/bin/update-ai-tools
@@ -282,23 +295,24 @@ if [ -d "${HOME_DIR}/.ssh" ] && [ "$(ls -A "${HOME_DIR}/.ssh" 2>/dev/null)" ]; t
     chmod 600 "${HOME_DIR}/.ssh"/id_* 2>/dev/null || true
     chmod 644 "${HOME_DIR}/.ssh"/*.pub 2>/dev/null || true
 fi
-for mount_label in \
-    "${HOME_DIR}/.ssh:SSH config" \
-    "${HOME_DIR}/.config/opencode:OpenCode config" \
-    "${HOME_DIR}/.pi:Pi agent config" \
-    "${HOME_DIR}/.agents:Agent skills" \
-    "/workspace:Workspace"; do
-    path="${mount_label%%:*}"
-    label="${mount_label#*:}"
-    if [ -d "$path" ] && [ "$(ls -A "$path" 2>/dev/null | head -1)" != "" ]; then
-        echo "[dev] Mounted ${label} → ${path}"
+# Diagnostics go to stderr and only when attached to a terminal, so that
+# `docker run devbox cat file > out` and piped `docker exec` stay clean.
+if [ -t 1 ] || [ -t 2 ]; then
+    for mount_label in \
+        "${HOME_DIR}/.ssh:SSH config" \
+        "${HOME_DIR}/.config/opencode:OpenCode config" \
+        "${HOME_DIR}/.pi:Pi agent config" \
+        "${HOME_DIR}/.agents:Agent skills" \
+        "/workspace:Workspace"; do
+        path="${mount_label%%:*}"
+        label="${mount_label#*:}"
+        if [ -d "$path" ] && [ "$(ls -A "$path" 2>/dev/null | head -1)" != "" ]; then
+            echo "[dev] Mounted ${label} → ${path}" >&2
+        fi
+    done
+    if command -v update-ai-tools >/dev/null 2>&1; then
+        echo "[dev] AI CLIs: run update-ai-tools to upgrade opencode2/pi/herdr to latest." >&2
     fi
-done
-if command -v update-ai-tools >/dev/null 2>&1; then
-    echo "[dev] AI CLIs: run update-ai-tools to upgrade opencode2/pi/herdr to latest."
-fi
-if [ "$(id -u)" -eq 0 ] && [ "$RUN_AS" = "dev" ] && id -u dev >/dev/null 2>&1; then
-    exec gosu dev "$@"
 fi
 exec "$@"
 ENTRYPOINT_EOF
