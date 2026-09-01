@@ -14,7 +14,7 @@ Published to GitHub Container Registry as `ghcr.io/luongnv89/devbox`.
 ## 🛠 Included Environment
 
 - **Base OS:** Ubuntu 26.04 (`LANG=en_US.UTF-8`, `TZ=Etc/UTC`, `WORKDIR /workspace`, runs as `root` with `zsh`).
-- **Shell & Terminal:** `zsh`, Oh My Zsh (plugins: `git`, `zsh-syntax-highlighting`, `zsh-autosuggestions`, `zsh-completions`, `npm`, `pip`, `python`), Starship prompt, JetBrainsMono Nerd Font.
+- **Shell & Terminal:** `zsh`, Oh My Zsh (plugins: `git`, `zsh-syntax-highlighting`, `zsh-autosuggestions`, `zsh-completions`, `npm`, `pip`, `python`), JetBrainsMono Nerd Font.
 - **Editor & Utilities:** Vim with `vim-plug` (`nerdtree`, `vim-gitgutter`, `fzf`, `fzf.vim`, `vim-surround`, `auto-pairs`), `btop`, `ripgrep` (`rg`), `bat`, `fzf`, `fd`, `jq`, `sudo`, `gosu`.
 - **Runtimes:**
   - **Node.js LTS** + `corepack` (`pnpm`, `yarn`).

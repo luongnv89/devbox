@@ -46,7 +46,7 @@ RUN install -d -m 0755 /etc/apt/keyrings && \
 # uv (Fast Python Package Manager)
 RUN curl -fsSL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh && uv --version
 
-# Oh My Zsh + plugins + Starship + vim-plug + fonts
+# Oh My Zsh + plugins + vim-plug + fonts
 RUN <<'EOF'
 set -e
 # Install Oh My Zsh
@@ -56,84 +56,6 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/too
 git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git /root/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
 git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git /root/.oh-my-zsh/custom/plugins/zsh-autosuggestions
 git clone --depth=1 https://github.com/zsh-users/zsh-completions.git /root/.oh-my-zsh/custom/plugins/zsh-completions
-
-# Starship Prompt
-mkdir -p /root/.config
-cat > /root/.config/starship.toml <<'STARSHIP_EOF'
-add_newline = true
-command_timeout = 1200
-format = """
-$hostname\
-$directory\
-$git_branch$git_status\
-$nodejs$python\
-$custom_llm\
-$cmd_duration\
-$line_break\
-$character
-"""
-[directory]
-style = "bold blue"
-truncation_length = 3
-truncate_to_repo = true
-fish_style_pwd_dir_length = 1
-read_only = " "
-format = "[$path]($style) "
-disabled = false
-[character]
-success_symbol = "[❯](bold green)"
-error_symbol = "[❯](bold red)"
-vimcmd_symbol = "[❮](bold yellow)"
-format = "$symbol "
-[cmd_duration]
-min_time = 2000
-show_milliseconds = false
-format = "⏱ [$duration]($style) "
-style = "yellow"
-[git_branch]
-symbol = " "
-format = "[$symbol$branch]($style) "
-style = "bold purple"
-[git_status]
-format = '([$all_status$ahead_behind]($style)) '
-style = "cyan"
-conflicted = "⚔ "
-ahead = "⇡${count} "
-behind = "⇣${count} "
-diverged = "⇕ "
-untracked = "? "
-modified = "✎ "
-staged = "+ "
-renamed = "» "
-deleted = "✘ "
-[nodejs]
-symbol = " "
-format = "[$symbol($version)](bold green) "
-detect_extensions = ["js", "jsx", "ts", "tsx", "mjs", "cjs"]
-detect_files = ["package.json", "vite.config.ts", "next.config.js"]
-detect_folders = ["node_modules"]
-[python]
-symbol = " "
-format = '[$symbol(${version} )(\($virtualenv\))]($style) '
-style = "bold yellow"
-python_binary = "python3"
-[custom.llm]
-command = "echo 'LLM'"
-when = "test -f .llm"
-format = "[ $output]($style) "
-style = "bold magenta"
-shell = ["bash", "-c"]
-[time]
-disabled = true
-[hostname]
-ssh_only = true
-format = "[$hostname]($style) "
-style = "dimmed"
-[battery]
-disabled = true
-STARSHIP_EOF
-
-curl -sS https://starship.rs/install.sh | sh -s -- -y
 
 # Vim Configuration + Plugins
 cat > /root/.vimrc <<'VIMRC_EOF'
@@ -179,7 +101,6 @@ fc-cache -fv && rm -f /tmp/JetBrainsMono.zip
 
 # Default Shell setup
 chsh -s "$(which zsh)"
-sed -i 's/^ZSH_THEME=".*"/ZSH_THEME=""/' /root/.zshrc
 sed -i 's/plugins=(git)/plugins=(git zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc
 
 cat > /root/.shell-cli-extras.zsh <<'EXTRAS_EOF'
@@ -196,9 +117,6 @@ alias jj='jq'
 EXTRAS_EOF
 
 cat >>/root/.zshrc <<'ZSHRC_EOF'
-
-# Initialize Starship prompt
-eval "$(starship init zsh)"
 
 # Development-friendly aliases
 alias ls='ls --color=auto'
