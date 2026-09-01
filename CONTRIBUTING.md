@@ -1,12 +1,11 @@
-# Contributing to docker-dev
+# Contributing to devbox
 
-Thank you for your interest in contributing to docker-dev! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to devbox! This single-image repository builds one Ubuntu 26.04 dev container (`Dockerfile` at the repo root) and publishes it as `ghcr.io/luongnv89/devbox`.
 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
 - [Development Workflow](#development-workflow)
-- [Adding a New Image](#adding-a-new-image)
 - [Pull Request Process](#pull-request-process)
 - [Code Style](#code-style)
 - [Testing](#testing)
@@ -45,86 +44,57 @@ git checkout -b my-feature-branch
 
 ## Development Workflow
 
-### Running Pre-commit Checks
+### Building the Image Locally
 
-Before committing, run the pre-commit checks:
-
-```bash
-./scripts/pre-commit.sh
-```
-
-This will:
-- Format shell scripts with shfmt
-- Lint shell scripts with ShellCheck
-- Lint Dockerfiles with Hadolint
-- Build the u2604dev image to verify Dockerfile validity
-- Clean up temporary files
-
-### Building Images Locally
-
-Build any image locally for testing:
+The single `Dockerfile` is self-contained and has no `COPY` dependency on legacy directories. It inlines `starship.toml`, `.vimrc`, shell extras, and the entrypoint, so the build context is minimal (`.dockerignore` excludes legacy `common/`/`u2604dev/` etc.). Always use the repository root as context:
 
 ```bash
-# Build a specific image
-docker build -t my-test -f u2604dev/Dockerfile .
+# Default build (ai-full — opencode2, Claude, Codex, Pi, herdr)
+docker build -t devbox .
 
-# Run interactive shell
-docker run --rm -it my-test zsh
+# Strict verification (matches CI)
+docker build --build-arg AI_VERIFY_MODE=strict -t devbox:strict .
+
+# Alternative profiles (local only — CI publishes ai-full as :latest)
+docker build --build-arg DEV_IMAGE_PROFILE=standard -t devbox:standard .
+docker build --build-arg DEV_IMAGE_PROFILE=minimal -t devbox:minimal .
 ```
 
-### Testing Changes
-
-Always test your changes by building the relevant image:
+Run an interactive shell:
 
 ```bash
-# Test u2604dev changes
-docker build -t test-u2604dev -f u2604dev/Dockerfile .
-
-# Test all images
-for dir in u2204dev u2404dev u2604dev devbox; do
-  docker build -t "test-${dir}" -f "${dir}/Dockerfile" .
-done
+docker run --rm -it -v "$PWD":/workspace devbox zsh
+# opencode2 inside: opencode2 --version (legacy `opencode` must be absent)
 ```
 
-## Adding a New Image
-
-To add a new development environment image:
-
-1. Create a new directory with a descriptive image name:
+Non-root variant (avoids root-owned files on bind-mounted `/workspace`):
 
 ```bash
-mkdir -p <image-name>
+docker build --build-arg DEV_CREATE_NONROOT_USER=1 --build-arg DEV_UID="$(id -u)" --build-arg DEV_GID="$(id -g)" -t devbox:nonroot .
+docker run --rm -it --user "$(id -u):$(id -g)" -v "$PWD":/workspace devbox:nonroot zsh
 ```
 
-2. Create a Dockerfile in the new directory. Ubuntu images can use the shared
-   Ubuntu installers; distro-specific images should use a dedicated base
-   installer and reuse only compatible shared steps.
+### Verifying Changes
 
-3. Create a `README.md` with:
-   - Image description
-   - Features list
-   - Build instructions
-   - Usage instructions
+Before committing:
 
-4. Create configuration files:
-   - `starship.toml` (if using Starship)
-   - `.vimrc` (if using Vim)
+```bash
+# Syntax / lint (hadolint is optional locally; CI builds enforce it)
+docker build -t devbox:verify --build-arg AI_VERIFY_MODE=strict .
 
-5. Update the main `README.md` to include your new image
-
-6. If GitHub Actions should publish it, add it to the build matrix in
-   `.github/workflows/build-images.yml` (CI currently publishes
-   **u2604dev** and **devbox** at the **ai-full** profile only; other
-   images/profiles are local `cdev build` / `docker build`)
+# Inside the built image, verify parity with BASELINE-u2604dev.md:
+docker run --rm devbox:verify bash -c 'cat /etc/os-release | grep VERSION_ID; whoami; echo $SHELL; pwd; opencode2 --version; pi --version'
+docker run --rm -v "$PWD":/workspace devbox:verify bash -c 'ls -la /workspace | head'
+```
 
 ## Pull Request Process
 
 ### Before Submitting
 
-1. Ensure all pre-commit checks pass
-2. Test your changes locally
-3. Update documentation as needed
-4. Commit your changes with clear commit messages
+1. Test your changes locally via `docker build -t devbox .`
+2. Update documentation as needed (`README.md`, this file, `SECURITY.md`)
+3. Commit with clear messages
+4. Ensure `docker build` shows the resolved `@opencode-ai/cli@beta` version and `opencode2 --version` succeeds; the old `opencode-ai` package must be absent (`npm list -g opencode-ai` shows nothing)
 
 ### Commit Message Format
 
@@ -136,22 +106,15 @@ mkdir -p <image-name>
 <footer>
 ```
 
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation only
-- `style`: Formatting changes
-- `refactor`: Code restructuring
-- `test`: Adding tests
-- `chore`: Maintenance
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`.
 
 Example:
-```
-feat(u2604dev): Add Python 3.13 support
 
-- Install Python 3.13 alongside existing Python versions
-- Set Python 3.13 as default
-- Add pip configuration
+```
+feat(devbox): bump Node.js LTS
+
+- Rebuild from new NodeSource setup_lts.x
+- Verify opencode2 still present
 
 Closes #123
 ```
@@ -159,115 +122,72 @@ Closes #123
 ### Submitting PRs
 
 1. Push your feature branch to your fork
-2. Open a Pull Request against the `main` branch
-3. Fill in the PR template completely
-4. Link any related issues
+2. Open a PR against `main`
+3. Fill in the PR template, link related issues
+4. CI builds the root `Dockerfile` on pull requests without publishing; pushes to `main` publish `latest` + `sha` to GHCR as `ghcr.io/luongnv89/devbox`
 
 ## Code Style
-
-### Shell Scripts
-
-- Use `#!/usr/bin/env bash`
-- Enable `set -euo pipefail`
-- Use `shellcheck` for linting
-- Follow Google Shell Style Guide
 
 ### Dockerfiles
 
 - Use Hadolint for linting
 - Follow Dockerfile best practices:
-  - Use specific base image tags
-  - Combine RUN statements to reduce layers
-  - Clean up in the same layer
-  - Use multi-stage builds when applicable
+  - Use specific base image tags (`ubuntu:26.04`)
+  - Keep `ARG` for `DEV_IMAGE_PROFILE` / `AI_VERIFY_MODE` / `AI_TOOLS_CACHEBUST` in its own layer so AI changes do not invalidate base layers
+  - Combine `RUN` statements to reduce layers; clean up `apt` metadata in the same layer
+  - Prefer `COPY` only when not inlining — this repo's `Dockerfile` has **no** `COPY` from legacy dirs; keep it that way
+
+### Shell Scripts
+
+- Use `#!/usr/bin/env bash`, `set -euo pipefail`, ShellCheck, Google Shell Style Guide
 
 ### Markdown
 
-- Use consistent heading hierarchy
-- Include code blocks with language tags
-- Keep line width to 80 characters
+- Consistent heading hierarchy, fenced code blocks with language tags
 
-## Image build verify modes (`AI_VERIFY_MODE`)
+## Image Build Verify Modes (`AI_VERIFY_MODE`)
 
-`common/install-ai-tools.sh` runs in a **dedicated Docker layer** (after apt/base setup) so bumps to AI tooling do not invalidate cached base layers.
+The single AI layer (after base setup) is validated per `AI_VERIFY_MODE`:
 
 | Mode | When to use | Behavior |
 |------|-------------|----------|
-| `lenient` (default) | Local `docker build` | Hard-fail on missing core tools (`git`, `node`, `opencode`, `pi`, …). For **ai-full**, missing `claude` / `codex` on `PATH` after `npm install -g` logs a note only (runtime mounts may supply them). |
-| `strict` | CI (`build-images.yml`) and release checks | Same as lenient, plus **ai-full** builds **fail** if `claude` or `codex` is not on `PATH` after global install. |
+| `lenient` (default) | Local `docker build` | Hard-fail on missing core tools (`git`, `node`, `opencode2`, `pi`, …). For `ai-full`, missing `claude`/`codex` shims logs a note only (runtime mounts may supply them). Also fails if `opencode2` is missing or old `opencode-ai` is still installed. |
+| `strict` | CI (`.github/workflows/devbox.yml`) | Same as lenient, plus `ai-full` fails if `claude` or `codex` is not on `PATH` after global install. CI also builds with `AI_TOOLS_CACHEBUST=$GITHUB_RUN_ID` so the AI layer is not stale. |
 
 ```bash
 # Local strict check (matches CI):
-docker build --build-arg AI_VERIFY_MODE=strict -f u2604dev/Dockerfile .
+docker build --build-arg AI_VERIFY_MODE=strict -t devbox:strict .
 ```
 
-`standard` / `minimal` profiles always verify the tools they install; strict vs lenient only changes optional shim handling on **ai-full**.
+## Global npm Supply-Chain
 
-## Global npm supply-chain checks
-
-- **CI:** `scripts/verify-ai-globals-audit.sh` runs on every workflow (resolves **latest** versions of the AI npm packages, prints the full `npm audit` report, and **fails on critical** severity). **High** findings are logged; they do not block the workflow. This covers **transitive npm vulnerabilities** in current latest AI CLIs; it does not replace Trivy.
-- **Transient registry errors in CI:** occasional `auth.docker.io` 502 responses during `docker/build-push-action` are infrastructure flakes. Re-run failed matrix jobs (`gh run rerun <run-id> --failed`) rather than changing image code.
-- **Images:** Published **ai-full** images on `main` are still scanned with **Trivy** (OS and installed packages in the image). Use both gates: audit at build time, Trivy after push.
-
-## AI CLI versions (always latest)
-
-Dev images install global AI CLIs from `common/install-ai-tools.sh` at **npm `@latest`** (`standard`: OpenCode + Pi + `agent-skill-manager`; `ai-full`: also Claude Code, Codex, pi-extensions, herdr). `minimal` skips AI npm CLIs but still ships `/usr/local/bin/update-ai-tools`.
-
-CI and `cdev build` pass `AI_TOOLS_CACHEBUST` so the AI layer is not served from a stale Docker cache.
-
-Inside a running container (as root or via sudo):
-
-```bash
-update-ai-tools
-```
-
-That upgrades the same package set as image build, re-runs `asm install` for `github:luongnv89/idd` and `github:luongnv89/skills`, and is the way to silence in-app “install new version” nags without rebuilding.
-
-Packages (always `@latest`):
-
-| Profile | npm packages |
-|----------|-------------|
-| `standard` | `opencode-ai`, `@mariozechner/pi-coding-agent`, `agent-skill-manager` |
-| `ai-full` | those plus `@anthropic-ai/claude-code`, `@openai/codex` |
-
-`pi install npm:…` extensions and `herdr` / `pi-extensions` installers follow their upstream install scripts. Skills are installed with `asm` into `~/.agents/skills` and linked into the CLIs the profile ships.
+- Images install AI CLIs at **npm `@latest`** (except `opencode2` which is `@opencode-ai/cli@beta`): `standard` → `opencode2`, `pi`, `asm`; `ai-full` → plus `claude`, `codex`, `herdr`, `pi-extensions`
+- CI builds use `AI_TOOLS_CACHEBUST` so the AI layer is not served from a stale Docker cache
+- Inside a running container, `update-ai-tools` upgrades the same set (plus re-installs `luongnv89/idd` + `luongnv89/skills` via `asm`)
 
 ## Testing
 
-### Automated Tests
+### Automated
 
-The project includes:
+- Dockerfile linting: Hadolint
+- Docker build tests: CI builds the single devbox image on every PR/push
+- Runtime parity: compare against `BASELINE-u2604dev.md` (Ubuntu 26.04, root, zsh, `/workspace`, entrypoint, dev/AI commands, `/root` files)
 
-- **Shell script linting**: ShellCheck
-- **Dockerfile linting**: Hadolint
-- **Docker build tests**: Building images in CI
-
-### Manual Testing
+### Manual
 
 Before submitting:
 
-1. Run `./scripts/pre-commit.sh`
-2. Build the modified image(s) locally
-3. Verify the container starts and shell is accessible
+1. `docker build -t devbox .` succeeds from repository root
+2. `docker run --rm devbox bash -c 'cat /etc/os-release | grep 26.04; whoami; echo $SHELL; opencode2 --version; which opencode && echo "old opencode should be absent" && exit 1 || echo "opencode absent ok"'`
+3. Container starts and `zsh` is accessible; workspace mounts work (`-v "$PWD":/workspace`)
 
 ## Documentation
 
-### README Files
-
-- Root `README.md`: Overview, quick start, available images
-- Per-image `README.md`: Detailed documentation for each image
-- `docs/architecture.md`, `docs/development.md`: Cross-cutting layout and contributor setup
-- `docs/DECISIONS.md`: Resolved doc ambiguities (append-only)
-
-Validate contributor docs: `./scripts/validate-dev-environment.sh --check` (`docs/development.md`).
-
-### Updating Documentation
-
-When adding features:
-
-1. Update relevant README files
-2. Add examples if applicable
-3. Update the CHANGELOG
+- `README.md`: devbox purpose, build/pull/run, mounts (`.agents`/`.claude`/`.codex`/`.pi`/OpenCode config, read-only `.ssh`), ports (`0.0.0.0`), warnings (root-owned files, credential mounts, Docker socket, floating beta pinning)
+- This file: contributor workflow for the single root Dockerfile
+- `SECURITY.md`: credential mounts, SSH keys, Docker socket, root execution, floating beta, image pinning
+- `BASELINE-u2604dev.md`: pre-migration inventory for parity checks
+- No `docs/` directory is maintained — the implementation is one `Dockerfile` + `.dockerignore` + workflow; documentation lives in the three files above
 
 ## Questions?
 
