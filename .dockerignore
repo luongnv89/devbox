@@ -1,21 +1,4 @@
 # Minimal build context — root Dockerfile is self-contained (no COPY from legacy dirs)
 .git
-.gitignore
 .github
-.gitissue
-assets
-blogs
-cli
-common
-devbox
-docs
-scripts
-skills
-u2204dev
-u2404dev
-u2604dev
-u2604dev-opencode
-install.sh
-CHANGELOG.md
-README.backup.md
-BASELINE-u2604dev.md
+.gitignore
