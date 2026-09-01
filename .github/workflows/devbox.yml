@@ -60,15 +60,6 @@ jobs:
             type=raw,value=latest
             type=sha
 
-      - name: Extract Docker metadata (infra)
-        id: meta-infra
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=infra-latest
-            type=raw,value=infra-sha,prefix=
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
@@ -83,20 +74,3 @@ jobs:
           build-args: |
             AI_VERIFY_MODE=strict
             AI_TOOLS_CACHEBUST=${{ github.run_id }}
-
-      - name: Build and push Docker image (infra)
-        if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta-infra.outputs.tags }}
-          labels: ${{ steps.meta-infra.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            AI_VERIFY_MODE=strict
-            AI_TOOLS_CACHEBUST=${{ github.run_id }}
-            INFRA_ENABLED=true

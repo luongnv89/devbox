@@ -5,187 +5,111 @@
 
 # devbox — single dev container
 
-One image that replaces the former `u2604dev` / `devbox` / `cdev` matrix with a single `Dockerfile` at the repository root. It preserves the development and AI tooling verified in `BASELINE-u2604dev.md`, runs as `root` with `zsh` at `/workspace`, and is published as `ghcr.io/luongnv89/devbox`. The OS base is pinned in the `Dockerfile` and may evolve over time (currently `ubuntu:26.04`).
+A fast, lightweight, all-in-one development container tailored for **Node.js**, **Python**, and **AI Coding Agents**. Plug your project workspace in and start developing immediately without polluting your host machine.
 
-## Included environment
+Published to GitHub Container Registry as `ghcr.io/luongnv89/devbox`.
 
-- **Base:** Ubuntu-based (`FROM` pinned in `Dockerfile` — currently `ubuntu:26.04`), `LANG=en_US.UTF-8`, `TZ=Etc/UTC`, `WORKDIR /workspace`
-- **Shell + editor:** `zsh`, Oh My Zsh (plugins `git`, `docker`, `zsh-syntax-highlighting`, `zsh-autosuggestions`, `zsh-completions`, `npm`, `pip`, `python`), Starship (`starship.toml`), Vim with `vim-plug` (`nerdtree`, `vim-gitgutter`, `fzf`, `fzf.vim`, `vim-surround`, `auto-pairs`), JetBrainsMono Nerd Font, `.shell-cli-extras.zsh` (`fzf`/`fd`/`jq`/`gh` helpers)
-- **Dev CLI:** `git` + `git-lfs` + `openssh-client`, `vim`, `curl`/`wget`, `jq`, `tzdata`, `btop`, `ripgrep` (`rg`), `bat`, `fzf`/`fd`, `ninja-build`/`gettext`/`cmake`/`build-essential`, `locales`, `fontconfig`
-- **Runtimes:** `Node.js LTS` + `corepack` (`pnpm`/`yarn`), `python3`/`pip`/`venv` + `uv`, `docker.io` client + `docker-compose-v2` plugin, `gh` CLI
-- **AI tools (ai-full default, via `npm install -g` at `@latest` except opencode2):** `claude` (`@anthropic-ai/claude-code`), `codex` (`@openai/codex`), `opencode2` (`@opencode-ai/cli@beta` — legacy `opencode-ai`/`opencode` is absent), `pi` (`@mariozechner/pi-coding-agent`) + `pi` extensions `opencode-pi`/`statusline-pi` + `luongnv89/pi-extensions`, `herdr`, `asm` (`agent-skill-manager`) with baked skills `luongnv89/idd` + `luongnv89/skills` linked into `claude`/`pi`/`codex` (`~/.agents/skills` → `~/.pi/skills`)
-- **Entrypoint:** `common/entrypoint-dev.sh` behavior inlined (`TZ` honor, `RUN_AS` root vs `dev`, SSH perms, mount announcements for `~/.ssh`/`~/.codex`/`~/.claude`/`~/.config/opencode`/`~/.pi`/`~/.agents`/`/workspace`, `update-ai-tools` hint, `gosu dev` when `DEV_CREATE_NONROOT_USER=1`)
-- **Profiles:** the single image builds at `ai-full` by default; `standard`/`minimal` remain buildable locally via `--build-arg DEV_IMAGE_PROFILE=standard|minimal` (same verify modes: `lenient` local, `strict` in CI). Optional `infra` variant via `--build-arg INFRA_ENABLED=true` adds `kubectl`, `helm`, `terraform` and the Oh My Zsh `kubectl` plugin; published as `infra-latest` and `infra-sha-<sha>`.
+---
 
-See `BASELINE-u2604dev.md` for the original parity inventory (captured on Ubuntu 26.04) and verification commands — current base is defined in `Dockerfile` and may change in future releases.
+## 🛠 Included Environment
 
-## Build and pull
+- **Base OS:** Ubuntu 26.04 (`LANG=en_US.UTF-8`, `TZ=Etc/UTC`, `WORKDIR /workspace`, runs as `root` with `zsh`).
+- **Shell & Terminal:** `zsh`, Oh My Zsh (plugins: `git`, `zsh-syntax-highlighting`, `zsh-autosuggestions`, `zsh-completions`, `npm`, `pip`, `python`), Starship prompt, JetBrainsMono Nerd Font.
+- **Editor & Utilities:** Vim with `vim-plug` (`nerdtree`, `vim-gitgutter`, `fzf`, `fzf.vim`, `vim-surround`, `auto-pairs`), `btop`, `ripgrep` (`rg`), `bat`, `fzf`, `fd`, `jq`, `sudo`, `gosu`.
+- **Runtimes:**
+  - **Node.js LTS** + `corepack` (`pnpm`, `yarn`).
+  - **Python 3** (`python3-venv`, `python3-pip`, `python3-dev`) + **`uv`** (ultra-fast package manager).
+- **AI Coding Agents & Extensions:**
+  - **`opencode2`**: OpenCode AI CLI (`@opencode-ai/cli@beta`).
+  - **`pi`**: Pi Coding Agent (installed via official `pi.dev` installer).
+    - `npm:opencode-pi`
+    - `npm:statusline-pi`
+    - `npm:timestamp-pi`
+    - `npm:pi-subagents`
+  - **`herdr`**: AI agent orchestration tool.
+- **Developer Tools:** `git` + `git-lfs` + `openssh-client`, `gh` (GitHub CLI).
 
-Build locally (context is repository root — `Dockerfile` is self-contained, no `COPY` from legacy dirs; `.dockerignore` keeps the context minimal):
+---
 
-```bash
-docker build -t devbox .
-```
+## 🚀 Quickstart
 
-### Infra profile (optional kubectl, helm, terraform)
-
-An optional `infra` variant adds Kubernetes and infrastructure tooling without bloating the default image:
-
-```bash
-# Build locally with infra tools
-docker build --build-arg INFRA_ENABLED=true -t devbox-infra .
-
-# Pull the published infra image
-docker pull ghcr.io/luongnv89/devbox:infra-latest
-# immutable SHA tag
-docker pull ghcr.io/luongnv89/devbox:infra-sha-<git-sha>
-```
-
-When `INFRA_ENABLED=true`:
-- Installs `kubectl` (v1.31 stable), `helm`, `terraform` (latest from HashiCorp)
-- Enables Oh My Zsh `kubectl` plugin (completion, aliases like `k`, `kgp`, `kdp`, etc.)
-- Published as `ghcr.io/luongnv89/devbox:infra-latest` and `infra-sha-<sha>` on pushes to `main`
-
-Use the **infra tag** when you need cluster access inside the sandbox; use the **standard `latest` tag** for general development without the extra tooling.
-
-Pull the published image (requires `read:packages` on first pull if the package is private; otherwise anonymous):
-
-```bash
-docker pull ghcr.io/luongnv89/devbox:latest
-# immutable SHA tag (per push to main)
-docker pull ghcr.io/luongnv89/devbox:sha-<git-sha>
-```
-
-All published images are `linux/amd64` + `linux/arm64` and built from `.` with `AI_VERIFY_MODE=strict` and `AI_TOOLS_CACHEBUST=$GITHUB_RUN_ID` in CI.
-
-## Running containers
-
-### Ephemeral (disposable — removed on exit)
+### Ephemeral Container (disposable — removed on exit)
 
 ```bash
 docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/devbox:latest zsh
-# or from a local build
-docker run --rm -it -v "$PWD":/workspace devbox zsh
 ```
 
-Exit the shell to remove the container; the host project at `/workspace` remains.
-
-### Named (re-enterable)
+### Named Container (background / re-enterable)
 
 ```bash
+# Start background container
 docker run -d --name my-dev -v "$PWD":/workspace ghcr.io/luongnv89/devbox:latest sleep infinity
+
+# Enter interactive shell
 docker exec -it my-dev zsh
 ```
 
-Inside either container, start an AI tool:
+---
+
+## 🤖 AI Tools & Configuration Mounts
+
+Credentials and skills are **not stored in the image**. Mount your host configurations and skill repositories as needed:
+
+| Host Path | Container Path | Purpose |
+| :--- | :--- | :--- |
+| `~/.config/opencode` | `/root/.config/opencode` | `opencode2` config & auth token |
+| `~/.pi` | `/root/.pi` | `pi` settings, auth, extensions & skills |
+| `~/.agents` | `/root/.agents` | Shared agent skills |
+| `~/.ssh` | `/root/.ssh:ro` | SSH keys for Git (mounted read-only) |
+
+### Example with AI & SSH Mounts
 
 ```bash
-opencode2   # OpenCode2 beta (note: `opencode` legacy command is absent)
-pi
-claude      # mount ~/.claude first (see below) or use npx fallback in lenient mode
-codex
-herdr
-asm
+docker run --rm -it \
+  -v "$PWD":/workspace \
+  -v "$HOME/.config/opencode":/root/.config/opencode \
+  -v "$HOME/.pi":/root/.pi \
+  -v "$HOME/.agents":/root/.agents \
+  -v "$HOME/.ssh":/root/.ssh:ro \
+  ghcr.io/luongnv89/devbox:latest zsh
 ```
 
-Refresh AI CLIs inside a running container (as `root` or via `sudo`):
+### Refreshing AI CLIs
+
+To upgrade `opencode2`, `pi`, `pi extensions`, and `herdr` to the latest releases inside a running container:
 
 ```bash
 update-ai-tools
 ```
 
-## Mounts — workspace and AI / SSH configuration
+---
 
-### Workspace
+## 🌐 Port Forwarding (Dev Servers)
 
-The container's `WORKDIR` is `/workspace`. Mount the host project there:
-
-```bash
-docker run --rm -it -v "$PWD":/workspace ghcr.io/luongnv89/devbox:latest zsh
-# named variant uses the same -v
-```
-
-Pass only the project directory — mounting the entire home directory is not needed.
-
-### AI configuration and skills
-
-Credentials are **not** stored in the image. Mount only the config your tool needs. Host → container paths are under the container's home (`/root` by default, `/home/dev` with `--nonroot`):
-
-| Host path | Container path | Used by |
-|-----------|---------------|---------|
-| `~/.agents` | `/root/.agents` | `asm` skills (`~/.agents/skills`) |
-| `~/.claude` | `/root/.claude` | `claude` |
-| `~/.codex` | `/root/.codex` | `codex` |
-| `~/.pi` | `/root/.pi` | `pi` (`~/.pi/skills` is symlinked from `~/.agents/skills`) |
-| `~/.config/opencode` | `/root/.config/opencode` | `opencode2` |
-
-Examples (plain `docker run` — no `cdev` wrapper):
+When running dev servers inside the container (e.g. Vite, Next.js, FastAPI), ensure the server listens on `0.0.0.0` and publish the port:
 
 ```bash
-# Claude Code with your login state
-docker run --rm -it -v "$PWD":/workspace -v "$HOME/.claude":/root/.claude ghcr.io/luongnv89/devbox:latest zsh
-
-# OpenCode2 beta
-docker run --rm -it -v "$PWD":/workspace -v "$HOME/.config/opencode":/root/.config/opencode ghcr.io/luongnv89/devbox:latest zsh
-# inside: opencode2
-
-# Pi
-docker run --rm -it -v "$PWD":/workspace -v "$HOME/.pi":/root/.pi ghcr.io/luongnv89/devbox:latest zsh
-# inside: pi
-
-# All AI configs at once
-docker run --rm -it \
-  -v "$PWD":/workspace \
-  -v "$HOME/.agents":/root/.agents \
-  -v "$HOME/.claude":/root/.claude \
-  -v "$HOME/.codex":/root/.codex \
-  -v "$HOME/.pi":/root/.pi \
-  -v "$HOME/.config/opencode":/root/.config/opencode \
-  ghcr.io/luongnv89/devbox:latest zsh
-```
-
-### SSH — read-only mount
-
-Mount host SSH keys read-only when you need `git+ssh` inside the container:
-
-```bash
-docker run --rm -it -v "$PWD":/workspace -v "$HOME/.ssh":/root/.ssh:ro ghcr.io/luongnv89/devbox:latest zsh
-```
-
-Entrypoint fixes perms (`700 ~/.ssh`, `600 ~/.ssh/id_*`, `644 ~/.ssh/*.pub`) when the mount is non-empty. Use `:ro` so a compromised container cannot rewrite keys. With `--nonroot` the path is `/home/dev/.ssh:ro`.
-
-## Ports — development servers
-
-Publish the host port and make the service inside the container **listen on `0.0.0.0`** (not `127.0.0.1`), or the mapped port will be unreachable:
-
-```bash
-# app inside container: python3 -m http.server 8000 --bind 0.0.0.0
-docker run --rm -it -v "$PWD":/workspace -p 8000:8000 ghcr.io/luongnv89/devbox:latest zsh
-# then in another host shell: curl http://localhost:8000
-
-# Vite / Next.js example (already binds 0.0.0.0 via --host)
+# Vite / Next.js
 docker run --rm -it -v "$PWD":/workspace -p 5173:5173 ghcr.io/luongnv89/devbox:latest zsh
 # inside: npm run dev -- --host 0.0.0.0 --port 5173
+
+# FastAPI / Python
+docker run --rm -it -v "$PWD":/workspace -p 8000:8000 ghcr.io/luongnv89/devbox:latest zsh
+# inside: uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-The entrypoint does not publish ports for you — `docker run -p` is the only mechanism. No `EXPOSE` in `Dockerfile` implies a default port.
+---
 
-## Warnings
+## 🔨 Building Locally
 
-- **Root-owned workspace files.** Containers run as `root` by default (`/etc/docker-dev-run-as` contains `root`). Files created in the bind-mounted `/workspace` are owned by `root` on the host. Fix with `sudo chown -R "$(id -u):$(id -g)" .` after exit, or build a non-root image locally (`--build-arg DEV_CREATE_NONROOT_USER=1 --build-arg DEV_UID="$(id -u)" --build-arg DEV_GID="$(id -g)"`) and run with `--user "$(id -u):$(id -g)"` (host `$HOME/.ssh` etc. then mount at `/home/dev/...`).
-- **Credential mounts.** `~/.claude`, `~/.codex`, `~/.config/opencode`, `~/.pi`, `~/.agents` contain bearer tokens. Mount only the one you need, never commit them, and prefer `:ro` where the entrypoint tolerates it. The entrypoint only announces mounts; it does not scrub or rotate secrets.
-- **Docker socket.** The image ships the Docker client only. Mounting `/var/run/docker.sock` (`-v /var/run/docker.sock:/var/run/docker.sock`) gives the container control of the host daemon (can start privileged containers and mount host paths). Enable only for trusted projects.
-- **Floating beta dependency.** `opencode2` comes from `npm install -g @opencode-ai/cli@beta` at build time; `update-ai-tools` upgrades to `@latest`/`@beta` again. Pin to a SHA-published image (`ghcr.io/luongnv89/devbox:sha-...`) for reproducible CI.
-- **Build context.** The Dockerfile is self-contained (no `COPY` from `common/`/`u2604dev/` etc.); `.dockerignore` excludes legacy directories so `docker build -t devbox .` sends a minimal context.
+```bash
+docker build -t devbox .
+```
 
-## Documentation
+---
 
-| Topic | File |
-|---|---|
-| Contributing (single Dockerfile workflow) | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Security policy (mounts, socket, root, pinning) | [SECURITY.md](SECURITY.md) |
-| Baseline inventory (pre-migration) | [BASELINE-u2604dev.md](BASELINE-u2604dev.md) |
-| License | [LICENSE](LICENSE) |
-| Code of Conduct | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
+## 📄 License & Docs
 
-CI: `.github/workflows/devbox.yml` — verifies `opencode2 --version`, publishes `latest` + `sha` on pushes to `main`, builds pull requests without publishing, supports `workflow_dispatch`, `linux/amd64` + `linux/arm64`, `permissions: contents: read, packages: write` only.
+- [LICENSE](LICENSE) (MIT)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [SECURITY.md](SECURITY.md)
