@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-# Deprecated: use `cdev` (install.sh). Forwards to cli/bin/cdev.
-set -euo pipefail
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export DOCKER_DEV_REPO="${DOCKER_DEV_REPO:-$ROOT}"
-exec "${ROOT}/cli/bin/cdev" "$@"
