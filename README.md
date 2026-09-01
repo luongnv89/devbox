@@ -102,6 +102,10 @@ docker run --rm -it -v "$PWD":/workspace -p 8000:8000 ghcr.io/luongnv89/devbox:l
 
 ---
 
+## 📦 Bind-Mount Notes
+
+The image sets `git config --global --add safe.directory '*'` to prevent "dubious ownership" errors when bind-mounting host repos (the host UID does not match the container's root UID). This disables Git's ownership verification for mounted directories — acceptable for disposable dev containers, but be aware that a malicious file in a bind mount will not trigger Git's usual safety warnings.
+
 ## 🔨 Building Locally
 
 ```bash

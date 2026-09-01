@@ -1,8 +1,11 @@
 # syntax=docker/dockerfile:1
 FROM ubuntu:26.04
 
+ARG BUILD_VERSION=dev
+
 LABEL maintainer="luongnv89"
 LABEL description="devbox — single dev container for Node.js, Python and AI coding agents"
+LABEL version="${BUILD_VERSION}"
 
 # Build-time only: does not leak into the running container's environment.
 ARG DEBIAN_FRONTEND=noninteractive
@@ -104,7 +107,18 @@ TERM=xterm-256color vim +'PlugInstall --sync' +qa || true
 # Default shell setup. zsh-syntax-highlighting must be sourced LAST (upstream
 # requirement) or it silently fails to highlight.
 chsh -s "$(which zsh)"
-sed -i 's/plugins=(git)/plugins=(git npm pip python zsh-autosuggestions zsh-completions zsh-syntax-highlighting)/' /root/.zshrc
+# Robustly inject plugins: target the plugins=() line regardless of existing content.
+# Extract existing plugins (if any), append our set, and replace in-place.
+if grep -q '^plugins=' /root/.zshrc; then
+  existing="$(grep '^plugins=' /root/.zshrc | sed 's/^plugins=(//;s/)$//')"
+  # Deduplicate: keep existing + append new ones, then collapse back.
+  all_plugins="${existing} npm pip python zsh-autosuggestions zsh-completions zsh-syntax-highlighting"
+  # Collapse duplicates while preserving order
+  deduped="$(echo "$all_plugins" | tr ' ' '\n' | awk '!seen[$0]++' | tr '\n' ' ' | sed 's/ $//')"
+  sed -i "s/^plugins=.*/plugins=(${deduped})/" /root/.zshrc
+else
+  echo 'plugins=(git npm pip python zsh-autosuggestions zsh-completions zsh-syntax-highlighting)' >> /root/.zshrc
+fi
 
 cat > /root/.shell-cli-extras.zsh <<'EXTRAS_EOF'
 # Core sandbox CLI utilities (jq, fzf, fd, gh)
@@ -157,14 +171,13 @@ EOF
 
 # ---------- AI Tools: opencode2, pi (+ extensions), herdr ----------
 ARG AI_VERIFY_MODE=strict
-ARG AI_TOOLS_CACHEBUST=0
 
 RUN <<'EOF'
 set -e
 export HOME=/root
 export PATH="/root/.local/bin:/usr/local/bin:${PATH}"
 
-echo "[AI] Installing AI tools (cachebust=${AI_TOOLS_CACHEBUST})..."
+echo "[AI] Installing AI tools..."
 
 # 1. opencode2
 npm install -g @opencode-ai/cli@beta
@@ -201,13 +214,13 @@ mkdir -p /usr/local/bin
 
 # MOTD generator: resolves tool versions ONCE at build time so interactive
 # shells do not pay ~550ms of subprocess spawns on every startup.
-cat > /usr/local/bin/devbox-genmotd <<'MOTD_EOF'
+cat > /usr/local/bin/devbox-genmotd <<MOTD_EOF
 #!/usr/bin/env bash
 # Regenerate /etc/devbox-motd with the currently installed tool versions.
-export PATH="/root/.local/bin:/usr/local/bin:${PATH}"
+export PATH="/root/.local/bin:/usr/local/bin:\${PATH}"
 {
     echo ""
-    echo "🚀 Welcome to devbox!"
+    echo "🚀 Welcome to devbox! [${BUILD_VERSION}]"
     command -v python3   >/dev/null 2>&1 && echo "🐍 $(python3 --version)"
     command -v node      >/dev/null 2>&1 && echo "🟢 Node.js $(node --version)"
     # These three already print their own name, so do not prefix it again.
@@ -300,9 +313,6 @@ if [ -t 1 ] || [ -t 2 ]; then
     if command -v update-ai-tools >/dev/null 2>&1; then
         echo "[dev] AI CLIs: run update-ai-tools to upgrade opencode2/pi/herdr to latest." >&2
     fi
-fi
-if [ "$(id -u)" -eq 0 ] && [ "$RUN_AS" = "dev" ] && id -u dev >/dev/null 2>&1; then
-    exec gosu dev "$@"
 fi
 exec "$@"
 ENTRYPOINT_EOF
