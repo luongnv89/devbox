@@ -36,9 +36,12 @@ usage() {
     exit 0
 }
 
-log_info()  { echo "[devbox] ℹ $*"; }
-log_warn()  { echo "[devbox] ⚠ $*" >&2; }
-log_error() { echo "[devbox] ✗ $*" >&2; exit 1; }
+log_info() { echo "[devbox] ℹ $*"; }
+log_warn() { echo "[devbox] ⚠ $*" >&2; }
+log_error() {
+    echo "[devbox] ✗ $*" >&2
+    exit 1
+}
 
 # Generate a unique container name with the devbox- prefix
 generate_name() {
@@ -60,22 +63,36 @@ check_docker() {
 # ── Argument Parsing ─────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -w|--workspace)
-            WORKSPACE="$2"; shift 2 ;;
-        -n|--name)
-            CONTAINER_NAME="$2"; shift 2 ;;
-        -i|--image)
-            IMAGE="$2"; shift 2 ;;
-        -p|--port)
-            PORT_MAPS+=("-p" "$2"); shift 2 ;;
-        -e|--env)
-            ENV_VARS+=("-e" "$2"); shift 2 ;;
-        -d|--detach)
-            DETACH=true; shift ;;
-        -h|--help)
-            usage ;;
-        *)
-            log_error "Unknown option: $1. Use --help for usage." ;;
+    -w | --workspace)
+        WORKSPACE="$2"
+        shift 2
+        ;;
+    -n | --name)
+        CONTAINER_NAME="$2"
+        shift 2
+        ;;
+    -i | --image)
+        IMAGE="$2"
+        shift 2
+        ;;
+    -p | --port)
+        PORT_MAPS+=("-p" "$2")
+        shift 2
+        ;;
+    -e | --env)
+        ENV_VARS+=("-e" "$2")
+        shift 2
+        ;;
+    -d | --detach)
+        DETACH=true
+        shift
+        ;;
+    -h | --help)
+        usage
+        ;;
+    *)
+        log_error "Unknown option: $1. Use --help for usage."
+        ;;
     esac
 done
 
@@ -124,7 +141,7 @@ if [[ -d "$HOME/.agents" ]]; then
     CMD+=("-v" "${HOME}/.agents:/root/.agents")
     log_info "Mounted ~/.agents → /root/.agents"
 else
-    log_warn "~/.agents not found — skipping AI agent skills mount"
+    log_warn "$HOME/.agents not found — skipping AI agent skills mount"
 fi
 
 # SSH config mount (read-only)
@@ -132,7 +149,7 @@ if [[ -d "$HOME/.ssh" ]] && ls "$HOME/.ssh" >/dev/null 2>&1; then
     CMD+=("-v" "${HOME}/.ssh:/root/.ssh:ro")
     log_info "Mounted ~/.ssh → /root/.ssh (read-only)"
 else
-    log_warn "~/.ssh not found — SSH authentication not available"
+    log_warn "$HOME/.ssh not found — SSH authentication not available"
 fi
 
 # SSH agent forwarding (if ssh-agent is running)
