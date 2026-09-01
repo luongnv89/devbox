@@ -14,11 +14,13 @@ Published to GitHub Container Registry as `ghcr.io/luongnv89/devbox`.
 ## 🛠 Included Environment
 
 - **Base OS:** Ubuntu 26.04 (`LANG=en_US.UTF-8`, `TZ=Etc/UTC`, `WORKDIR /workspace`, runs as `root` with `zsh`).
-- **Shell & Terminal:** `zsh`, Oh My Zsh (plugins: `git`, `zsh-syntax-highlighting`, `zsh-autosuggestions`, `zsh-completions`, `npm`, `pip`, `python`), JetBrainsMono Nerd Font.
+- **Shell & Terminal:** `zsh`, Oh My Zsh (plugins: `git`, `npm`, `pip`, `python`, `zsh-autosuggestions`, `zsh-completions`, `zsh-syntax-highlighting`), `fzf` key bindings (`Ctrl-R`, `Ctrl-T`, `Alt-C`) backed by `fd`.
+
+  > Nerd Font glyphs are rendered by your **host** terminal, so no font is shipped inside the image. Install [JetBrainsMono Nerd Font](https://github.com/ryanoasis/nerd-fonts) on the host if you want icon glyphs.
 - **Editor & Utilities:** Vim with `vim-plug` (`nerdtree`, `vim-gitgutter`, `fzf`, `fzf.vim`, `vim-surround`, `auto-pairs`), `btop`, `ripgrep` (`rg`), `bat`, `fzf`, `fd`, `jq`, `sudo`, `gosu`.
 - **Runtimes:**
   - **Node.js LTS** + `corepack` (`pnpm`, `yarn`).
-  - **Python 3** (`python3-venv`, `python3-pip`, `python3-dev`) + **`uv`** (ultra-fast package manager).
+  - **Python 3** (`python3-venv`, `python3-pip`, `python3-dev`) + **`uv`** (ultra-fast package manager). `pip install` works directly against the system interpreter (`PIP_BREAK_SYSTEM_PACKAGES=1`, safe inside a disposable container); use `python3 -m venv` or `uv venv` for per-project isolation.
 - **AI Coding Agents & Extensions:**
   - **`opencode2`**: OpenCode AI CLI (`@opencode-ai/cli@beta`).
   - **`pi`**: Pi Coding Agent (installed via official `pi.dev` installer).
