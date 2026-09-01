@@ -1,23 +1,23 @@
 <p align="center"><img src="logo.png" alt="devbox logo" width="400"></p>
 
-[![Build and Publish devbox](https://github.com/luongnv89/docker-dev/actions/workflows/devbox.yml/badge.svg)](https://github.com/luongnv89/docker-dev/actions/workflows/devbox.yml)
+[![Build and Publish devbox](https://github.com/luongnv89/devbox/actions/workflows/devbox.yml/badge.svg)](https://github.com/luongnv89/devbox/actions/workflows/devbox.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-# devbox — single Ubuntu 26.04 dev container
+# devbox — single dev container
 
-One Ubuntu 26.04 image that replaces the former `u2604dev` / `devbox` / `cdev` matrix with a single `Dockerfile` at the repository root. It preserves the `u2604dev` development and AI tooling verified in `BASELINE-u2604dev.md`, runs as `root` with `zsh` at `/workspace`, and is published as `ghcr.io/luongnv89/devbox`.
+One image that replaces the former `u2604dev` / `devbox` / `cdev` matrix with a single `Dockerfile` at the repository root. It preserves the development and AI tooling verified in `BASELINE-u2604dev.md`, runs as `root` with `zsh` at `/workspace`, and is published as `ghcr.io/luongnv89/devbox`. The OS base is pinned in the `Dockerfile` and may evolve over time (currently `ubuntu:26.04`).
 
 ## Included environment
 
-- **Base:** Ubuntu 26.04 (`FROM ubuntu:26.04`), `LANG=en_US.UTF-8`, `TZ=Etc/UTC`, `WORKDIR /workspace`
+- **Base:** Ubuntu-based (`FROM` pinned in `Dockerfile` — currently `ubuntu:26.04`), `LANG=en_US.UTF-8`, `TZ=Etc/UTC`, `WORKDIR /workspace`
 - **Shell + editor:** `zsh`, Oh My Zsh (plugins `git`, `docker`, `zsh-syntax-highlighting`, `zsh-autosuggestions`, `zsh-completions`, `npm`, `pip`, `python`), Starship (`starship.toml`), Vim with `vim-plug` (`nerdtree`, `vim-gitgutter`, `fzf`, `fzf.vim`, `vim-surround`, `auto-pairs`), JetBrainsMono Nerd Font, `.shell-cli-extras.zsh` (`fzf`/`fd`/`jq`/`gh` helpers)
 - **Dev CLI:** `git` + `git-lfs` + `openssh-client`, `vim`, `curl`/`wget`, `jq`, `tzdata`, `btop`, `ripgrep` (`rg`), `bat`, `fzf`/`fd`, `ninja-build`/`gettext`/`cmake`/`build-essential`, `locales`, `fontconfig`
 - **Runtimes:** `Node.js LTS` + `corepack` (`pnpm`/`yarn`), `python3`/`pip`/`venv` + `uv`, `docker.io` client + `docker-compose-v2` plugin, `gh` CLI
 - **AI tools (ai-full default, via `npm install -g` at `@latest` except opencode2):** `claude` (`@anthropic-ai/claude-code`), `codex` (`@openai/codex`), `opencode2` (`@opencode-ai/cli@beta` — legacy `opencode-ai`/`opencode` is absent), `pi` (`@mariozechner/pi-coding-agent`) + `pi` extensions `opencode-pi`/`statusline-pi` + `luongnv89/pi-extensions`, `herdr`, `asm` (`agent-skill-manager`) with baked skills `luongnv89/idd` + `luongnv89/skills` linked into `claude`/`pi`/`codex` (`~/.agents/skills` → `~/.pi/skills`)
 - **Entrypoint:** `common/entrypoint-dev.sh` behavior inlined (`TZ` honor, `RUN_AS` root vs `dev`, SSH perms, mount announcements for `~/.ssh`/`~/.codex`/`~/.claude`/`~/.config/opencode`/`~/.pi`/`~/.agents`/`/workspace`, `update-ai-tools` hint, `gosu dev` when `DEV_CREATE_NONROOT_USER=1`)
-- **Profiles:** the single image builds at `ai-full` by default; `standard`/`minimal` remain buildable locally via `--build-arg DEV_IMAGE_PROFILE=standard|minimal` (same verify modes: `lenient` local, `strict` in CI)
+- **Profiles:** the single image builds at `ai-full` by default; `standard`/`minimal` remain buildable locally via `--build-arg DEV_IMAGE_PROFILE=standard|minimal` (same verify modes: `lenient` local, `strict` in CI). Optional `infra` variant via `--build-arg INFRA_ENABLED=true` adds `kubectl`, `helm`, `terraform` and the Oh My Zsh `kubectl` plugin; published as `infra-latest` and `infra-sha-<sha>`.
 
-See `BASELINE-u2604dev.md` for the full parity inventory and verification commands.
+See `BASELINE-u2604dev.md` for the original parity inventory (captured on Ubuntu 26.04) and verification commands — current base is defined in `Dockerfile` and may change in future releases.
 
 ## Build and pull
 
@@ -26,6 +26,27 @@ Build locally (context is repository root — `Dockerfile` is self-contained, no
 ```bash
 docker build -t devbox .
 ```
+
+### Infra profile (optional kubectl, helm, terraform)
+
+An optional `infra` variant adds Kubernetes and infrastructure tooling without bloating the default image:
+
+```bash
+# Build locally with infra tools
+docker build --build-arg INFRA_ENABLED=true -t devbox-infra .
+
+# Pull the published infra image
+docker pull ghcr.io/luongnv89/devbox:infra-latest
+# immutable SHA tag
+docker pull ghcr.io/luongnv89/devbox:infra-sha-<git-sha>
+```
+
+When `INFRA_ENABLED=true`:
+- Installs `kubectl` (v1.31 stable), `helm`, `terraform` (latest from HashiCorp)
+- Enables Oh My Zsh `kubectl` plugin (completion, aliases like `k`, `kgp`, `kdp`, etc.)
+- Published as `ghcr.io/luongnv89/devbox:infra-latest` and `infra-sha-<sha>` on pushes to `main`
+
+Use the **infra tag** when you need cluster access inside the sandbox; use the **standard `latest` tag** for general development without the extra tooling.
 
 Pull the published image (requires `read:packages` on first pull if the package is private; otherwise anonymous):
 

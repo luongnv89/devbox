@@ -44,15 +44,43 @@ RUN apt-get update && apt-get install -y --no-install-recommends docker.io && \
     if apt-cache show docker-compose-v2 >/dev/null 2>&1; then apt-get install -y --no-install-recommends docker-compose-v2 || true; fi && \
     rm -rf /var/lib/apt/lists/* && docker --version
 
+# Infra tools (kubectl, helm, terraform) — optional profile
+ARG INFRA_ENABLED=false
+RUN if [ "${INFRA_ENABLED}" = "true" ]; then \
+        echo "[INFRA] Installing kubectl, helm, terraform..." && \
+        apt-get update && \
+        # kubectl
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg && \
+        echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /" > /etc/apt/sources.list.d/kubernetes.list && \
+        # helm
+        curl -fsSL https://baltocdn.com/helm/signing.asc | gpg --dearmor -o /etc/apt/keyrings/helm.gpg && \
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" > /etc/apt/sources.list.d/helm-stable-debian.list && \
+        # terraform
+        curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /etc/apt/keyrings/hashicorp.gpg && \
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list && \
+        apt-get update && apt-get install -y --no-install-recommends kubectl helm terraform && \
+        rm -rf /var/lib/apt/lists/* && \
+        kubectl version --client && helm version && terraform version; \
+    else \
+        echo "[INFRA] Skipping infra tools (INFRA_ENABLED=${INFRA_ENABLED})"; \
+    fi
+
 # uv
 RUN curl -fsSL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh && uv --version
 
-# Oh My Zsh + plugins + Starship + vim-plug + fonts — matching host setup (wedisagree, plugins: git, docker, zsh-syntax-highlighting, zsh-autosuggestions, zsh-completions)
+# Oh My Zsh + plugins + Starship + vim-plug + fonts — matching host setup (wedisagree, plugins: git, docker, zsh-syntax-highlighting, zsh-autosuggestions, zsh-completions, npm, pip, python)
 # Starship config and .vimrc are inlined via heredoc so the Dockerfile has no COPY dependency on legacy dirs.
+# kubectl plugin only added when INFRA_ENABLED=true
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
     git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git /root/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting && \
     git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git /root/.oh-my-zsh/custom/plugins/zsh-autosuggestions && \
     git clone --depth=1 https://github.com/zsh-users/zsh-completions.git /root/.oh-my-zsh/custom/plugins/zsh-completions && \
+    if [ "${INFRA_ENABLED}" = "true" ]; then \
+        git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /tmp/ohmyzsh && \
+        cp -r /tmp/ohmyzsh/plugins/kubectl /root/.oh-my-zsh/custom/plugins/kubectl && \
+        rm -rf /tmp/ohmyzsh && \
+        echo "[INFRA] kubectl plugin added"; \
+    fi && \
     mkdir -p /root/.config && \
     cat > /root/.config/starship.toml <<'STARSHIP_EOF'
 # ===============================================
@@ -188,7 +216,12 @@ VIMRC_EOF
     unzip -qo /tmp/JetBrainsMono.zip -d /usr/share/fonts/nerd-fonts/ && fc-cache -fv && rm -f /tmp/JetBrainsMono.zip && \
     chsh -s "$(which zsh)" && \
     sed -i 's/^ZSH_THEME=".*"/ZSH_THEME=""/' /root/.zshrc && \
-    sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc && \
+    if [ "${INFRA_ENABLED}" = "true" ]; then \
+        sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python kubectl)/' /root/.zshrc && \
+        echo "[INFRA] kubectl plugin enabled in .zshrc"; \
+    else \
+        sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc; \
+    fi && \
     cat > /root/.shell-cli-extras.zsh <<'EXTRAS_EOF'
 # Core sandbox CLI utilities (jq, fzf, fd, gh)
 if [ -f /usr/share/fzf/shell/key-bindings.zsh ]; then
@@ -293,6 +326,7 @@ ZSHRC_EOF
 ARG DEV_IMAGE_PROFILE=ai-full
 ARG AI_VERIFY_MODE=lenient
 ARG AI_TOOLS_CACHEBUST=0
+ARG INFRA_ENABLED=false
 RUN echo "AI_TOOLS_CACHEBUST=${AI_TOOLS_CACHEBUST}" && \
     export HOME=/root && export PATH="${PATH}:/usr/local/bin" && \
     echo "[AI] Build profile: ${DEV_IMAGE_PROFILE} (verify: ${AI_VERIFY_MODE})" && \
