@@ -16,7 +16,7 @@
 # Features:
 #   - Workspace mounting (user-specified or current directory)
 #   - Auto-generated or custom container names (prefix: devbox-)
-#   - AI agent setup mounting (~/.agents → /root/.agents)
+#   - AI skills-only mounting (~/.agents → /root/.agents)
 #   - SSH agent/key forwarding for GitHub authentication
 #   - Automatic container attachment after startup (unless --detach)
 
@@ -136,7 +136,8 @@ CMD+=("--name" "$CONTAINER_NAME")
 # Workspace mount
 CMD+=("-v" "${WORKSPACE}:/workspace")
 
-# AI agent setup mount: ~/.agents → /root/.agents
+# AI skills-only mount. Do not mount provider or agent state such as
+# ~/.config/opencode or ~/.pi.
 if [[ -d "$HOME/.agents" ]]; then
     CMD+=("-v" "${HOME}/.agents:/root/.agents")
     log_info "Mounted ~/.agents → /root/.agents"
@@ -167,18 +168,6 @@ if [[ -n "${SSH_AUTH_SOCK:-}" ]]; then
     log_info "Forwarded SSH agent via $SSH_AUTH_SOCK"
 else
     log_info "No SSH agent found — GitHub SSH authentication will rely on mounted keys"
-fi
-
-# OpenCode config mount
-if [[ -d "$HOME/.config/opencode" ]]; then
-    CMD+=("-v" "${HOME}/.config/opencode:/root/.config/opencode")
-    log_info "Mounted ~/.config/opencode → /root/.config/opencode"
-fi
-
-# Pi agent config mount
-if [[ -d "$HOME/.pi" ]]; then
-    CMD+=("-v" "${HOME}/.pi:/root/.pi")
-    log_info "Mounted ~/.pi → /root/.pi"
 fi
 
 # Port mappings
