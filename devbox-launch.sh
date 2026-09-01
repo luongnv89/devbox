@@ -193,7 +193,9 @@ done
 
 # Image and command
 CMD+=("$IMAGE")
-if [[ "$DETACH" == false ]]; then
+if [[ "$DETACH" == true ]]; then
+    CMD+=("sleep" "infinity")
+else
     CMD+=("zsh")
 fi
 
@@ -206,9 +208,7 @@ log_info "───────────────────────�
 if [[ "$DETACH" == true ]]; then
     CMD+=("-d")
     log_info "Starting in detached mode..."
-    docker run -d --name "$CONTAINER_NAME" \
-        -v "${WORKSPACE}:/workspace" \
-        "$IMAGE" sleep infinity
+    "${CMD[@]}"
     log_info "Container '$CONTAINER_NAME' started in background."
     log_info "Enter with: docker exec -it $CONTAINER_NAME zsh"
 else
