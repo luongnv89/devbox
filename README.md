@@ -1,4 +1,4 @@
-<p align="center"><img src="logo.png" alt="devbox logo" width="400"></p>
+<p align="center"><img src="logo.png?raw=true" alt="devbox logo" width="400"></p>
 
 [![Build and Publish devbox](https://github.com/luongnv89/devbox/actions/workflows/devbox.yml/badge.svg)](https://github.com/luongnv89/devbox/actions/workflows/devbox.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
