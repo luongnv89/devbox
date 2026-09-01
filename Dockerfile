@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM ubuntu:26.04
 
 LABEL maintainer="luongnv89"
@@ -71,18 +72,20 @@ RUN curl -fsSL https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/b
 # Oh My Zsh + plugins + Starship + vim-plug + fonts — matching host setup (wedisagree, plugins: git, docker, zsh-syntax-highlighting, zsh-autosuggestions, zsh-completions, npm, pip, python)
 # Starship config and .vimrc are inlined via heredoc so the Dockerfile has no COPY dependency on legacy dirs.
 # kubectl plugin only added when INFRA_ENABLED=true
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \
-    git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git /root/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting && \
-    git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git /root/.oh-my-zsh/custom/plugins/zsh-autosuggestions && \
-    git clone --depth=1 https://github.com/zsh-users/zsh-completions.git /root/.oh-my-zsh/custom/plugins/zsh-completions && \
-    if [ "${INFRA_ENABLED}" = "true" ]; then \
-        git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /tmp/ohmyzsh && \
-        cp -r /tmp/ohmyzsh/plugins/kubectl /root/.oh-my-zsh/custom/plugins/kubectl && \
-        rm -rf /tmp/ohmyzsh && \
-        echo "[INFRA] kubectl plugin added"; \
-    fi && \
-    mkdir -p /root/.config && \
-    cat > /root/.config/starship.toml <<'STARSHIP_EOF'
+RUN <<'EOF'
+set -e
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+git clone --depth=1 https://github.com/zsh-users/zsh-syntax-highlighting.git /root/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
+git clone --depth=1 https://github.com/zsh-users/zsh-autosuggestions.git /root/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+git clone --depth=1 https://github.com/zsh-users/zsh-completions.git /root/.oh-my-zsh/custom/plugins/zsh-completions
+if [ "${INFRA_ENABLED}" = "true" ]; then
+    git clone --depth=1 https://github.com/ohmyzsh/ohmyzsh.git /tmp/ohmyzsh
+    cp -r /tmp/ohmyzsh/plugins/kubectl /root/.oh-my-zsh/custom/plugins/kubectl
+    rm -rf /tmp/ohmyzsh
+    echo "[INFRA] kubectl plugin added"
+fi
+mkdir -p /root/.config
+cat > /root/.config/starship.toml <<'STARSHIP_EOF'
 # ===============================================
 # STARSHIP - Clean Dev Prompt (Node, Python, Docker, LLM, CTF)
 # ===============================================
@@ -176,8 +179,9 @@ disabled = true
 [battery]
 disabled = true
 STARSHIP_EOF
-    curl -sS https://starship.rs/install.sh | sh -s -- -y && \
-    cat > /root/.vimrc <<'VIMRC_EOF'
+
+curl -sS https://starship.rs/install.sh | sh -s -- -y
+cat > /root/.vimrc <<'VIMRC_EOF'
 " Basic Vim configuration with helpful defaults and plugins
 set nocompatible
 filetype off
@@ -209,20 +213,22 @@ nnoremap <silent> <C-n> :NERDTreeToggle<CR>
 nnoremap <silent> <leader>f :Files<CR>
 let g:gitgutter_enabled = 1
 VIMRC_EOF
-    curl -fLo /root/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim && \
-    TERM=xterm-256color vim +'PlugInstall --sync' +qa || true && \
-    mkdir -p /usr/share/fonts/nerd-fonts && \
-    wget -O /tmp/JetBrainsMono.zip https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip && \
-    unzip -qo /tmp/JetBrainsMono.zip -d /usr/share/fonts/nerd-fonts/ && fc-cache -fv && rm -f /tmp/JetBrainsMono.zip && \
-    chsh -s "$(which zsh)" && \
-    sed -i 's/^ZSH_THEME=".*"/ZSH_THEME=""/' /root/.zshrc && \
-    if [ "${INFRA_ENABLED}" = "true" ]; then \
-        sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python kubectl)/' /root/.zshrc && \
-        echo "[INFRA] kubectl plugin enabled in .zshrc"; \
-    else \
-        sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc; \
-    fi && \
-    cat > /root/.shell-cli-extras.zsh <<'EXTRAS_EOF'
+
+curl -fLo /root/.vim/autoload/plug.vim --create-dirs https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+TERM=xterm-256color vim +'PlugInstall --sync' +qa || true
+mkdir -p /usr/share/fonts/nerd-fonts
+wget -O /tmp/JetBrainsMono.zip https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip
+unzip -qo /tmp/JetBrainsMono.zip -d /usr/share/fonts/nerd-fonts/ && fc-cache -fv && rm -f /tmp/JetBrainsMono.zip
+chsh -s "$(which zsh)"
+sed -i 's/^ZSH_THEME=".*"/ZSH_THEME=""/' /root/.zshrc
+if [ "${INFRA_ENABLED}" = "true" ]; then
+    sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python kubectl)/' /root/.zshrc
+    echo "[INFRA] kubectl plugin enabled in .zshrc"
+else
+    sed -i 's/plugins=(git)/plugins=(git docker zsh-syntax-highlighting zsh-autosuggestions zsh-completions npm pip python)/' /root/.zshrc
+fi
+
+cat > /root/.shell-cli-extras.zsh <<'EXTRAS_EOF'
 # Core sandbox CLI utilities (jq, fzf, fd, gh)
 if [ -f /usr/share/fzf/shell/key-bindings.zsh ]; then
   source /usr/share/fzf/shell/key-bindings.zsh
@@ -234,7 +240,8 @@ export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git 2>/dev/nu
 alias ff='fzf'
 alias jj='jq'
 EXTRAS_EOF
-    cat >>/root/.zshrc <<'ZSHRC_EOF'
+
+cat >>/root/.zshrc <<'ZSHRC_EOF'
 
 # Initialize Starship prompt
 eval "$(starship init zsh)"
@@ -318,7 +325,9 @@ fi
 echo ""
 
 ZSHRC_EOF
-    mkdir -p /workspace && echo "root" > /etc/docker-dev-run-as
+
+mkdir -p /workspace && echo "root" > /etc/docker-dev-run-as
+EOF
 
 # ---------- AI tools: devbox AI setup (opencode2 via @opencode-ai/cli@beta, pi, asm, herdr) ----------
 # This layer is intentionally separate so bumps to npm@latest do not invalidate the base layer.
@@ -327,12 +336,15 @@ ARG DEV_IMAGE_PROFILE=ai-full
 ARG AI_VERIFY_MODE=lenient
 ARG AI_TOOLS_CACHEBUST=0
 ARG INFRA_ENABLED=false
-RUN echo "AI_TOOLS_CACHEBUST=${AI_TOOLS_CACHEBUST}" && \
-    export HOME=/root && export PATH="${PATH}:/usr/local/bin" && \
-    echo "[AI] Build profile: ${DEV_IMAGE_PROFILE} (verify: ${AI_VERIFY_MODE})" && \
-    # Install updater script inline (no COPY from common)
-    mkdir -p /usr/local/bin && \
-    cat > /usr/local/bin/update-ai-tools <<'UPDATER_EOF'
+RUN <<'EOF'
+set -e
+echo "AI_TOOLS_CACHEBUST=${AI_TOOLS_CACHEBUST}"
+export HOME=/root && export PATH="${PATH}:/usr/local/bin"
+echo "[AI] Build profile: ${DEV_IMAGE_PROFILE} (verify: ${AI_VERIFY_MODE})"
+
+# Install updater script inline (no COPY from common)
+mkdir -p /usr/local/bin
+cat > /usr/local/bin/update-ai-tools <<'UPDATER_EOF'
 #!/usr/bin/env bash
 # Upgrade baked-in AI CLIs, personal tools, and skill repos to latest.
 set -euo pipefail
@@ -362,49 +374,52 @@ if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[
 for optional_cmd in claude codex; do if ! command -v "$optional_cmd" >/dev/null 2>&1; then msg="[AI] ${optional_cmd} CLI not on PATH after global npm install"; if [ "$AI_VERIFY_MODE" = "strict" ] || [ "$PROFILE" = "ai-full" ] && [ "$AI_VERIFY_MODE" = "strict" ]; then echo "${msg} (strict verify — failing build)" >&2; exit 1; fi; echo "[AI] Note: ${optional_cmd} CLI not on PATH (lenient — mount ~/.${optional_cmd} at runtime or use npx)"; fi; done
 echo "[AI] Tooling install complete (${PROFILE})."
 UPDATER_EOF
-    chmod 0755 /usr/local/bin/update-ai-tools && \
-    printf '%s\n' "${DEV_IMAGE_PROFILE}" > /etc/docker-dev-ai-profile && \
-    # npm installs: @opencode-ai/cli@beta (opencode2) replaces legacy opencode-ai
-    if [ "${DEV_IMAGE_PROFILE}" = "minimal" ]; then \
-        echo "[AI] minimal profile — skipping global AI npm CLIs"; \
-    elif [ "${DEV_IMAGE_PROFILE}" = "standard" ]; then \
-        echo "[AI] npm install -g @opencode-ai/cli@beta @mariozechner/pi-coding-agent agent-skill-manager@latest" && \
-        npm install -g @opencode-ai/cli@beta && echo "[AI] @opencode-ai/cli@beta@$(npm list -g @opencode-ai/cli --depth=0 2>/dev/null | grep @opencode-ai/cli | sed 's/.*@//')" && npm list -g @opencode-ai/cli --depth=0 2>&1 | head -n 20 && opencode2 --version && if ! command -v opencode2 >/dev/null 2>&1; then echo "[AI] opencode2 not found after installing @opencode-ai/cli@beta" >&2; exit 1; fi && if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Removing old opencode-ai package (should be absent)" >&2; npm uninstall -g opencode-ai || true; fi && npm install -g @mariozechner/pi-coding-agent@latest agent-skill-manager@latest && \
-        if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi && \
-        if command -v asm >/dev/null 2>&1; then \
-            for repo in github:luongnv89/idd github:luongnv89/skills; do asm install "$repo" --all -p agents -s global -y --force || echo "[AI] Warning: asm install $repo failed (non-fatal)" >&2; done; \
-            if [ -d /root/.agents/skills ]; then \
-                for tool in opencode2 pi; do \
-                    if [ "$tool" = pi ]; then mkdir -p /root/.pi/skills; for s in /root/.agents/skills/*; do [ -d "$s" ] || continue; ln -sfn "$s" "/root/.pi/skills/$(basename "$s")"; done; echo "[AI] Linked skills into /root/.pi/skills"; continue; fi; \
-                    asm link /root/.agents/skills -p "$tool" -f || echo "[AI] Warning: asm link to $tool failed (non-fatal)" >&2; \
-                done; \
-            fi; \
-        fi && \
-        for cmd in git vim zsh starship node npm python3 opencode2 pi asm; do if ! command -v "$cmd" >/dev/null 2>&1; then echo "[AI] Missing expected command: $cmd" >&2; exit 1; fi; done; \
-        if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package is still installed (must be absent)" >&2; exit 1; fi; \
-    else \
-        echo "[AI] npm install -g @anthropic-ai/claude-code @openai/codex @opencode-ai/cli@beta @mariozechner/pi-coding-agent agent-skill-manager@latest" && \
-        npm install -g @opencode-ai/cli@beta && echo "[AI] @opencode-ai/cli@beta@$(npm list -g @opencode-ai/cli --depth=0 2>/dev/null | grep @opencode-ai/cli | sed 's/.*@//')" && npm list -g @opencode-ai/cli --depth=0 2>&1 | head -n 20 && opencode2 --version && if ! command -v opencode2 >/dev/null 2>&1; then echo "[AI] opencode2 not found after installing @opencode-ai/cli@beta" >&2; exit 1; fi && if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Removing old opencode-ai package (should be absent)" >&2; npm uninstall -g opencode-ai || true; fi && npm install -g @anthropic-ai/claude-code@latest @openai/codex@latest @mariozechner/pi-coding-agent@latest agent-skill-manager@latest && \
-        if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi && \
-        echo "[AI] Installing luongnv89/pi-extensions..."; curl -fsSL https://raw.githubusercontent.com/luongnv89/pi-extensions/main/install.sh | bash -s -- --auto || true && \
-        echo "[AI] Installing herdr..."; curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin bash || echo "[AI] Warning: herdr install failed (non-fatal)" >&2 && \
-        if command -v asm >/dev/null 2>&1; then \
-            for repo in github:luongnv89/idd github:luongnv89/skills; do asm install "$repo" --all -p agents -s global -y --force || echo "[AI] Warning: asm install $repo failed (non-fatal)" >&2; done; \
-            if [ -d /root/.agents/skills ]; then \
-                for tool in claude opencode pi codex; do \
-                    if [ "$tool" = pi ]; then mkdir -p /root/.pi/skills; for s in /root/.agents/skills/*; do [ -d "$s" ] || continue; ln -sfn "$s" "/root/.pi/skills/$(basename "$s")"; done; echo "[AI] Linked skills into /root/.pi/skills"; continue; fi; \
-                    asm link /root/.agents/skills -p "$tool" -f || echo "[AI] Warning: asm link to $tool failed (non-fatal)" >&2; \
-                done; \
-            fi; \
-        fi && \
-        for cmd in git vim zsh starship node npm python3 opencode2 pi asm; do if ! command -v "$cmd" >/dev/null 2>&1; then echo "[AI] Missing expected command: $cmd" >&2; exit 1; fi; done;
-        if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package must be absent" >&2; exit 1; fi; \
-        for optional_cmd in claude codex; do if ! command -v "$optional_cmd" >/dev/null 2>&1; then msg="[AI] ${optional_cmd} CLI not on PATH after global npm install"; if [ "${AI_VERIFY_MODE}" = "strict" ]; then echo "${msg} (strict verify — failing build)" >&2; exit 1; fi; echo "[AI] Note: ${optional_cmd} CLI not on PATH (lenient — mount ~/.${optional_cmd} at runtime or use npx)"; fi; done; \
-    fi && \
-    echo "[AI] Tooling install complete (${DEV_IMAGE_PROFILE})."
+
+chmod 0755 /usr/local/bin/update-ai-tools
+printf '%s\n' "${DEV_IMAGE_PROFILE}" > /etc/docker-dev-ai-profile
+
+# npm installs: @opencode-ai/cli@beta (opencode2) replaces legacy opencode-ai
+if [ "${DEV_IMAGE_PROFILE}" = "minimal" ]; then
+    echo "[AI] minimal profile — skipping global AI npm CLIs"
+elif [ "${DEV_IMAGE_PROFILE}" = "standard" ]; then
+    echo "[AI] npm install -g @opencode-ai/cli@beta @mariozechner/pi-coding-agent agent-skill-manager@latest"
+    npm install -g @opencode-ai/cli@beta && echo "[AI] @opencode-ai/cli@beta@$(npm list -g @opencode-ai/cli --depth=0 2>/dev/null | grep @opencode-ai/cli | sed 's/.*@//')" && npm list -g @opencode-ai/cli --depth=0 2>&1 | head -n 20 && opencode2 --version && if ! command -v opencode2 >/dev/null 2>&1; then echo "[AI] opencode2 not found after installing @opencode-ai/cli@beta" >&2; exit 1; fi && if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Removing old opencode-ai package (should be absent)" >&2; npm uninstall -g opencode-ai || true; fi && npm install -g @mariozechner/pi-coding-agent@latest agent-skill-manager@latest
+    if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi
+    if command -v asm >/dev/null 2>&1; then
+        for repo in github:luongnv89/idd github:luongnv89/skills; do asm install "$repo" --all -p agents -s global -y --force || echo "[AI] Warning: asm install $repo failed (non-fatal)" >&2; done
+        if [ -d /root/.agents/skills ]; then
+            for tool in opencode2 pi; do
+                if [ "$tool" = pi ]; then mkdir -p /root/.pi/skills; for s in /root/.agents/skills/*; do [ -d "$s" ] || continue; ln -sfn "$s" "/root/.pi/skills/$(basename "$s")"; done; echo "[AI] Linked skills into /root/.pi/skills"; continue; fi
+                asm link /root/.agents/skills -p "$tool" -f || echo "[AI] Warning: asm link to $tool failed (non-fatal)" >&2
+            done
+        fi
+    fi
+    for cmd in git vim zsh starship node npm python3 opencode2 pi asm; do if ! command -v "$cmd" >/dev/null 2>&1; then echo "[AI] Missing expected command: $cmd" >&2; exit 1; fi; done
+    if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package is still installed (must be absent)" >&2; exit 1; fi
+else
+    echo "[AI] npm install -g @anthropic-ai/claude-code @openai/codex @opencode-ai/cli@beta @mariozechner/pi-coding-agent agent-skill-manager@latest"
+    npm install -g @opencode-ai/cli@beta && echo "[AI] @opencode-ai/cli@beta@$(npm list -g @opencode-ai/cli --depth=0 2>/dev/null | grep @opencode-ai/cli | sed 's/.*@//')" && npm list -g @opencode-ai/cli --depth=0 2>&1 | head -n 20 && opencode2 --version && if ! command -v opencode2 >/dev/null 2>&1; then echo "[AI] opencode2 not found after installing @opencode-ai/cli@beta" >&2; exit 1; fi && if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Removing old opencode-ai package (should be absent)" >&2; npm uninstall -g opencode-ai || true; fi && npm install -g @anthropic-ai/claude-code@latest @openai/codex@latest @mariozechner/pi-coding-agent@latest agent-skill-manager@latest
+    if command -v pi >/dev/null 2>&1; then pi install npm:opencode-pi npm:statusline-pi || echo "[AI] Warning: pi install npm extensions failed (non-fatal)" >&2; fi
+    echo "[AI] Installing luongnv89/pi-extensions..."; curl -fsSL https://raw.githubusercontent.com/luongnv89/pi-extensions/main/install.sh | bash -s -- --auto || true
+    echo "[AI] Installing herdr..."; curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin bash || echo "[AI] Warning: herdr install failed (non-fatal)" >&2
+    if command -v asm >/dev/null 2>&1; then
+        for repo in github:luongnv89/idd github:luongnv89/skills; do asm install "$repo" --all -p agents -s global -y --force || echo "[AI] Warning: asm install $repo failed (non-fatal)" >&2; done
+        if [ -d /root/.agents/skills ]; then
+            for tool in claude opencode pi codex; do
+                if [ "$tool" = pi ]; then mkdir -p /root/.pi/skills; for s in /root/.agents/skills/*; do [ -d "$s" ] || continue; ln -sfn "$s" "/root/.pi/skills/$(basename "$s")"; done; echo "[AI] Linked skills into /root/.pi/skills"; continue; fi
+                asm link /root/.agents/skills -p "$tool" -f || echo "[AI] Warning: asm link to $tool failed (non-fatal)" >&2
+            done
+        fi
+    fi
+    for cmd in git vim zsh starship node npm python3 opencode2 pi asm; do if ! command -v "$cmd" >/dev/null 2>&1; then echo "[AI] Missing expected command: $cmd" >&2; exit 1; fi; done
+    if npm list -g opencode-ai --depth=0 2>&1 | grep -q "opencode-ai@"; then echo "[AI] Old opencode-ai package must be absent" >&2; exit 1; fi
+    for optional_cmd in claude codex; do if ! command -v "$optional_cmd" >/dev/null 2>&1; then msg="[AI] ${optional_cmd} CLI not on PATH after global npm install"; if [ "${AI_VERIFY_MODE}" = "strict" ]; then echo "${msg} (strict verify — failing build)" >&2; exit 1; fi; echo "[AI] Note: ${optional_cmd} CLI not on PATH (lenient — mount ~/.${optional_cmd} at runtime or use npx)"; fi; done
+fi
+echo "[AI] Tooling install complete (${DEV_IMAGE_PROFILE})."
+EOF
 
 # ---------- Entrypoint (no COPY) ----------
-RUN cat > /entrypoint.sh <<'ENTRYPOINT_EOF'
+COPY <<'ENTRYPOINT_EOF' /entrypoint.sh
 #!/usr/bin/env bash
 set -euo pipefail
 if [ -n "${TZ:-}" ] && [ -f /usr/share/zoneinfo/"${TZ}" ]; then
@@ -455,7 +470,8 @@ if [ "$(id -u)" -eq 0 ] && [ "$RUN_AS" = "dev" ] && id -u dev >/dev/null 2>&1; t
 fi
 exec "$@"
 ENTRYPOINT_EOF
-    chmod +x /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
 
 WORKDIR /workspace
 ENTRYPOINT ["/entrypoint.sh"]
