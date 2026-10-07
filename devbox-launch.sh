@@ -52,6 +52,26 @@ log_error() {
     exit 1
 }
 
+# Stage SSH entries without runtime sockets. Check every operation explicitly:
+# callers use this in a conditional, where Bash disables implicit errexit.
+stage_ssh_dir() (
+    local src="$1" dst="$2" entry
+    shopt -s dotglob nullglob
+    [[ -r "$src" && -x "$src" ]] || return 1
+    mkdir -m 700 "$dst" || return 1
+    for entry in "$src"/*; do
+        if [[ -L "$entry" ]]; then
+            cp -a "$entry" "$dst/" || return 1
+        elif [[ -S "$entry" ]]; then
+            continue
+        elif [[ -d "$entry" ]]; then
+            stage_ssh_dir "$entry" "$dst/${entry##*/}" || return 1
+        else
+            cp -a "$entry" "$dst/" || return 1
+        fi
+    done
+)
+
 # Generate a unique container name with the devbox- prefix
 generate_name() {
     local timestamp
@@ -232,14 +252,15 @@ fi
 
 # ── Prepare SSH volume (rewrites host paths for container) ───────────────────
 # Refreshed on every launch so new keys/config on the host reach the container.
-if [[ -d "$HOME/.ssh" ]] && ls "$HOME/.ssh" >/dev/null 2>&1; then
+if [[ -d "$HOME/.ssh" ]]; then
     if ! docker volume inspect "$SSH_VOL" >/dev/null 2>&1; then
         docker volume create "$SSH_VOL" >/dev/null
     fi
     SSH_TMP=$(mktemp -d)
-    # Runtime sockets (e.g. ssh-agent dirs) can't be copied and are useless in
-    # the container — hide their noise; GNU cp would otherwise abort the copy.
-    cp -a "$HOME/.ssh" "$SSH_TMP/" 2>&1 | grep -v 'socket' >&2 || true
+    trap 'rm -rf "$SSH_TMP"' EXIT
+    if ! stage_ssh_dir "$HOME/.ssh" "$SSH_TMP/.ssh"; then
+        log_error "SSH staging failed — existing SSH volume left unchanged."
+    fi
     # Rewrite host paths to container paths. `sed -i.bak` is the portable form —
     # plain `sed -i` fails on BSD/macOS sed (it eats `-e` as the backup suffix).
     if [[ -f "$SSH_TMP/.ssh/config" ]]; then
@@ -255,8 +276,25 @@ if [[ -d "$HOME/.ssh" ]] && ls "$HOME/.ssh" >/dev/null 2>&1; then
         -v "$SSH_TMP/.ssh:/src:ro" \
         -v "$SSH_VOL:/dst" \
         alpine:latest \
-        sh -c 'rm -rf /dst/* /dst/.[!.]* /dst/..?* 2>/dev/null || true; cp -a /src/. /dst/'
+        sh -c '
+            set -eu
+            src=$1 dst=$2
+            umask 077
+            staged=$(mktemp -d "$dst/.devbox-ssh-refresh.XXXXXX")
+            trap '\''rm -rf "$staged"'\'' EXIT
+            # Complete the copy on the volume before removing any existing keys.
+            cp -a "$src/." "$staged/"
+            for entry in "$dst"/* "$dst"/.[!.]* "$dst"/..?*; do
+                [ "$entry" = "$staged" ] && continue
+                rm -rf "$entry"
+            done
+            for entry in "$staged"/* "$staged"/.[!.]* "$staged"/..?*; do
+                [ -e "$entry" ] || [ -L "$entry" ] || continue
+                mv "$entry" "$dst/"
+            done
+        ' sh /src /dst
     rm -rf "$SSH_TMP"
+    trap - EXIT
     log_info "Refreshed ~/.ssh → /root/.ssh (volume: $SSH_VOL)"
 else
     log_warn "$HOME/.ssh not found — SSH authentication not available"
