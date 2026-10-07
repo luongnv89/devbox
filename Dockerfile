@@ -179,11 +179,12 @@ export PATH="/root/.local/bin:/usr/local/bin:${PATH}"
 
 echo "[AI] Installing AI tools..."
 
-# 1. opencode via official installer (installs to ~/.opencode/bin; symlinked into
-# /usr/local/bin so non-login shells see it — the image manages PATH itself)
+# 1. opencode via official installer. Its standalone binary must live outside
+# /root (0700) so numeric/non-root users can execute it without exposing root's home.
 curl -fsSL https://opencode.ai/v2/install | bash -s -- --no-modify-path
-if [ -f /root/.opencode/bin/opencode ] && [ ! -f /usr/local/bin/opencode ]; then
-    ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode
+if [ -f /root/.opencode/bin/opencode ]; then
+    rm -f /usr/local/bin/opencode
+    install -m 0755 /root/.opencode/bin/opencode /usr/local/bin/opencode
 fi
 # The installer also drops a legacy `opencode2` compat shim — not wanted here.
 rm -f /root/.opencode/bin/opencode2
@@ -258,9 +259,11 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 export PATH="/root/.local/bin:/usr/local/bin:${PATH}"
 echo "[AI] Updating opencode..."
-curl -fsSL https://opencode.ai/v2/install | bash -s -- --no-modify-path || true
+curl -fsSL https://opencode.ai/v2/install | HOME=/root bash -s -- --no-modify-path || true
 if [ -f /root/.opencode/bin/opencode ]; then
-    ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode
+    # Remove legacy symlinks before copying; never relax /root permissions.
+    rm -f /usr/local/bin/opencode
+    install -m 0755 /root/.opencode/bin/opencode /usr/local/bin/opencode
 fi
 rm -f /root/.opencode/bin/opencode2
 echo "[AI] Updating Claude Code..."

@@ -253,6 +253,61 @@ else
     echo "  ✗ Container not running — skipping PATH check"
 fi
 
+# ── Regression: OpenCode is accessible without root or credentials ──────────
+echo ""
+echo "Test 9: non-root OpenCode execution"
+nonroot_exit=0
+nonroot_output=$(docker run --rm --user 1000:1000 -e HOME=/tmp \
+    --entrypoint bash "$IMAGE_NAME" -c '
+        set -e
+        test -w "$HOME"
+        test ! -L /usr/local/bin/opencode
+        /usr/local/bin/opencode --version
+    ' 2>&1) || nonroot_exit=$?
+assert_exit_code "numeric user can execute installed OpenCode" 0 "$nonroot_exit"
+assert_contains "non-root OpenCode prints a version" "$nonroot_output" '[0-9]\+\.[0-9]\+\.[0-9]\+'
+
+# Exercise the generated updater with a fake installer, stopping at npm before
+# any other tool can update. Seed a legacy root symlink to test its replacement.
+echo ""
+echo "Test 10: updater preserves globally accessible OpenCode"
+updater_exit=0
+updater_output=$(docker exec -i -e HOME=/tmp "$CONTAINER_NAME" bash <<'UPDATER_TEST_EOF'
+set -euo pipefail
+mkdir -p /root/.local/bin
+trap 'rm -f /root/.local/bin/curl /root/.local/bin/npm' EXIT
+cat > /root/.local/bin/curl <<'FAKE_CURL_EOF'
+#!/usr/bin/env bash
+# Only the OpenCode installer is permitted; never make a network request.
+[[ "$*" == '-fsSL https://opencode.ai/v2/install' ]] || exit 99
+cat <<'FAKE_INSTALL_EOF'
+set -e
+[[ "$HOME" == /root ]]
+[[ "$*" == --no-modify-path ]]
+mkdir -p "$HOME/.opencode/bin"
+printf '#!/usr/bin/env bash\nprintf "opencode v0.0.0-updater-test\\n"\n' > "$HOME/.opencode/bin/opencode"
+chmod 0755 "$HOME/.opencode/bin/opencode"
+FAKE_INSTALL_EOF
+FAKE_CURL_EOF
+printf '#!/usr/bin/env bash\nexit 77\n' > /root/.local/bin/npm
+chmod 0755 /root/.local/bin/curl /root/.local/bin/npm
+rm -f /usr/local/bin/opencode
+ln -s /root/.opencode/bin/opencode /usr/local/bin/opencode
+status=0
+/usr/local/bin/update-ai-tools || status=$?
+test "$status" -eq 77
+test ! -L /usr/local/bin/opencode
+test "$(stat -c %a /usr/local/bin/opencode)" = 755
+test "$(stat -c %a /root)" = 700
+UPDATER_TEST_EOF
+) || updater_exit=$?
+assert_exit_code "updater replaces root symlink and keeps /root private" 0 "$updater_exit"
+updated_exit=0
+updated_output=$(docker exec --user 1000:1000 -e HOME=/tmp "$CONTAINER_NAME" \
+    /usr/local/bin/opencode --version 2>&1) || updated_exit=$?
+assert_exit_code "numeric user can execute updated OpenCode" 0 "$updated_exit"
+assert_eq "updater installed the controlled binary" "opencode v0.0.0-updater-test" "$updated_output"
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""
 echo "═══════════════════════════════════════"
