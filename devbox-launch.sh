@@ -272,7 +272,9 @@ if [[ -d "$HOME/.ssh" ]]; then
             "$SSH_TMP/.ssh/config"
         rm -f "$SSH_TMP/.ssh/config.bak"
     fi
-    docker run --rm \
+    # One daemon reserves this volume-derived name before executing the helper;
+    # contenders fail fast. If stale, inspect it manually before removal/retry.
+    docker run --rm --name "${SSH_VOL}-refresh" \
         -v "$SSH_TMP/.ssh:/src:ro" \
         -v "$SSH_VOL:/dst" \
         alpine:latest \

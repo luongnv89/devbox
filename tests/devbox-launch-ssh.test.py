@@ -9,6 +9,7 @@ import socket
 import subprocess
 import tempfile
 import textwrap
+import time
 import unittest
 
 
@@ -43,13 +44,22 @@ class SSHRefreshTests(unittest.TestCase):
             PATH=f"{self.bin}:{os.environ['PATH']}",
             MOCK_ROOT=str(self.root),
             MOCK_REAL_CP=shutil.which("cp"),
+            MOCK_REAL_MKTEMP=shutil.which("mktemp"),
             MOCK_PYTHON=shutil.which("python3"),
             MOCK_CP_FAIL="",
             GIT_CONFIG_NOSYSTEM="1",
             GIT_CONFIG_GLOBAL=os.devnull,
         )
+        self.write_mock("mktemp", '''
+            import os, sys
+            args = sys.argv[1:]
+            if args == ["-d"]:
+                # BSD mktemp -d can ignore TMPDIR without an explicit template.
+                args.append(os.environ["TMPDIR"] + "/host.XXXXXX")
+            os.execv(os.environ["MOCK_REAL_MKTEMP"], ["mktemp"] + args)
+        ''')
         self.write_mock("cp", '''
-            import os, pathlib, sys
+            import os, pathlib, subprocess, sys, time
             args = sys.argv[1:]
             src, dst = args[-2:]
             mode = os.environ.get("MOCK_CP_FAIL", "")
@@ -61,6 +71,18 @@ class SSHRefreshTests(unittest.TestCase):
             if unreadable or pathlib.Path(src).name == mode or volume_failure:
                 print("cp: synthetic fixture: Permission denied", file=sys.stderr)
                 sys.exit(1)
+            if os.environ.get("MOCK_PAUSE") == "1" and "/volume/" in dst:
+                result = subprocess.call([os.environ["MOCK_REAL_CP"]] + args)
+                if result:
+                    sys.exit(result)
+                root = pathlib.Path(os.environ["MOCK_ROOT"])
+                (root / "ready").write_text(dst)
+                deadline = time.monotonic() + 20
+                while not (root / "release").exists():
+                    if time.monotonic() > deadline:
+                        sys.exit(1)
+                    time.sleep(0.01)
+                sys.exit(0)
             os.execv(os.environ["MOCK_REAL_CP"], ["cp"] + args)
         ''')
         self.write_mock("docker", '''
@@ -78,16 +100,35 @@ class SSHRefreshTests(unittest.TestCase):
                        if mount.endswith(":/src:ro")]
             if sources:
                 src = pathlib.Path(sources[0])
-                shutil.copytree(src, root / "snapshot", symlinks=True)
-                (root / "staging-path").write_text(str(src.parent))
-                # Execute the actual helper shell, substituting only mount paths.
-                command = args[args.index("-c") + 1]
-                # Also sandbox older helpers with literal mount paths, so a
-                # regression can never delete a host /dst or read a host /src.
-                command = command.replace("/src", str(src))
-                command = command.replace("/dst", str(root / "volume"))
-                sys.exit(subprocess.call(["sh", "-c", command, "sh",
-                                          str(src), str(root / "volume")]))
+                # Atomic reservation before execution models daemon name ownership.
+                reservation = None
+                if "--name" in args:
+                    names = root / "names"
+                    names.mkdir(exist_ok=True)
+                    reservation = names / args[args.index("--name") + 1]
+                    try:
+                        reservation.mkdir()
+                    except FileExistsError:
+                        print("Conflict: container name already in use", file=sys.stderr)
+                        sys.exit(125)
+                try:
+                    with (root / "executed.jsonl").open("a") as log:
+                        log.write(json.dumps(args) + "\\n")
+                    shutil.copytree(src, root / "snapshot", symlinks=True,
+                                    dirs_exist_ok=True)
+                    (root / "staging-path").write_text(str(src.parent))
+                    # Execute the actual helper shell, substituting only mount paths.
+                    command = args[args.index("-c") + 1]
+                    # Also sandbox older helpers with literal mount paths, so a
+                    # regression can never delete a host /dst or read a host /src.
+                    command = command.replace("/src", str(src))
+                    command = command.replace("/dst", str(root / "volume"))
+                    result = subprocess.call(["sh", "-c", command, "sh",
+                                              str(src), str(root / "volume")])
+                finally:
+                    if reservation is not None:
+                        reservation.rmdir()  # --rm releases the name after exit.
+                sys.exit(result)
             sys.exit(0)  # Container launch is recorded, never executed.
         ''')
 
@@ -97,9 +138,12 @@ class SSHRefreshTests(unittest.TestCase):
         path.write_text(f"#!{self.env['MOCK_PYTHON']}\n" + textwrap.dedent(body))
         path.chmod(0o755)
 
-    def launch(self):
+    def launch_args(self, name="ssh-test"):
+        return ["/bin/bash", str(LAUNCH), "-d", "-w", str(self.root), "-n", name]
+
+    def launch(self, name="ssh-test"):
         return subprocess.run(
-            ["/bin/bash", str(LAUNCH), "-d", "-w", str(self.root), "-n", "ssh-test"],
+            self.launch_args(name),
             env=self.env, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             timeout=30,
         )
@@ -181,6 +225,54 @@ class SSHRefreshTests(unittest.TestCase):
         self.assertEqual(list(self.tmp.iterdir()), [])
         self.assertFalse(Path((self.root / "staging-path").read_text()).exists())
         self.assertEqual(list(self.volume.glob(".devbox-ssh-refresh.*")), [])
+
+    def test_concurrent_refresh_fails_fast_without_executing_contender(self):
+        env_a = self.env.copy()
+        env_a["MOCK_PAUSE"] = "1"
+        first = subprocess.Popen(self.launch_args("launcher-a"), env=env_a,
+                                 text=True, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+        try:
+            deadline = time.monotonic() + 10
+            while not (self.root / "ready").exists():
+                self.assertIsNone(first.poll(), "A exited before staging pause")
+                self.assertLess(time.monotonic(), deadline, "A did not pause")
+                time.sleep(0.01)
+            staged = Path((self.root / "ready").read_text())
+            staged_key = (staged / "id_fixture").read_text()
+            host_staging = set(self.tmp.iterdir())
+            self.assertEqual(len(host_staging), 1)
+            contender = self.launch("launcher-b")
+            self.assertNotEqual(contender.returncode, 0)
+            self.assertIn("Conflict", contender.stderr)
+            self.assertEqual(set(self.tmp.iterdir()), host_staging,
+                             "B's host staging must be removed")
+            executed = (self.root / "executed.jsonl").read_text().splitlines()
+            self.assertEqual(len(executed), 1, "B must not execute a helper")
+            for args in self.runs():
+                self.assertIn("--rm", args)
+                self.assertEqual(args[args.index("--name") + 1],
+                                 "devbox-ssh-config-refresh")
+            self.assertEqual(len(self.runs()), 2, "neither main launcher ran")
+            self.assertEqual((staged / "id_fixture").read_text(), staged_key)
+            self.assertEqual((self.volume / "existing-key").read_text(),
+                             "synthetic existing key\n")
+            self.assertEqual((self.volume / ".existing-config").read_text(),
+                             "synthetic existing config\n")
+        finally:
+            (self.root / "release").touch()
+            stdout, stderr = first.communicate(timeout=30)
+        self.assertEqual(first.returncode, 0, stdout + stderr)
+        self.assertEqual((self.volume / "id_fixture").read_text(), staged_key)
+        self.assertEqual((self.volume / "config").read_text(),
+                         "IdentityFile /root/.ssh/id_fixture\n")
+        self.assertFalse((self.volume / "existing-key").exists())
+        self.assertEqual(list(self.tmp.iterdir()), [])
+        self.assertEqual(list((self.root / "names").iterdir()), [])
+        self.assertEqual(self.launch("launcher-c").returncode, 0)
+        self.assertEqual(len((self.root / "executed.jsonl").read_text().splitlines()), 2)
+        self.assertEqual(len(self.runs()), 5, "A and C launch, B fails before launch")
+        self.assertEqual(list(self.tmp.iterdir()), [])
 
     def test_helper_copy_failure_preserves_existing_volume(self):
         self.env["MOCK_CP_FAIL"] = "volume"
