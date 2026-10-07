@@ -49,7 +49,7 @@ git checkout -b my-feature-branch
 The single `Dockerfile` is self-contained and has no `COPY` dependency on legacy directories. It inlines `starship.toml`, `.vimrc`, shell extras, and the entrypoint, so the build context is minimal (`.dockerignore` excludes legacy `common/`/`u2604dev/` etc.). Always use the repository root as context:
 
 ```bash
-# Default build (ai-full — opencode2, Claude, Codex, Pi, herdr)
+# Default build (ai-full — opencode, Claude, Codex, Pi, herdr)
 docker build -t devbox .
 
 # Strict verification (matches CI)
@@ -64,7 +64,7 @@ Run an interactive shell:
 
 ```bash
 docker run --rm -it -v "$PWD":/workspace devbox zsh
-# opencode2 inside: opencode2 --version (legacy `opencode` must be absent)
+# opencode inside: opencode --version (beta-fork `opencode2` must be absent)
 ```
 
 Non-root variant (avoids root-owned files on bind-mounted `/workspace`):
@@ -83,7 +83,7 @@ Before committing:
 docker build -t devbox:verify --build-arg AI_VERIFY_MODE=strict .
 
 # Inside the built image, verify parity with BASELINE-u2604dev.md:
-docker run --rm devbox:verify bash -c 'cat /etc/os-release | grep VERSION_ID; whoami; echo $SHELL; pwd; opencode2 --version; pi --version'
+docker run --rm devbox:verify bash -c 'cat /etc/os-release | grep VERSION_ID; whoami; echo $SHELL; pwd; opencode --version; pi --version'
 docker run --rm -v "$PWD":/workspace devbox:verify bash -c 'ls -la /workspace | head'
 ```
 
@@ -94,7 +94,7 @@ docker run --rm -v "$PWD":/workspace devbox:verify bash -c 'ls -la /workspace | 
 1. Test your changes locally via `docker build -t devbox .`
 2. Update documentation as needed (`README.md`, this file, `SECURITY.md`)
 3. Commit with clear messages
-4. Ensure `docker build` shows the resolved `@opencode-ai/cli@beta` version and `opencode2 --version` succeeds; the old `opencode-ai` package must be absent (`npm list -g opencode-ai` shows nothing)
+4. Ensure `docker build` installs opencode via the official `opencode.ai/v2` installer and `opencode --version` succeeds; the beta-fork package `@opencode-ai/cli` must be absent (`npm list -g @opencode-ai/cli` shows nothing)
 
 ### Commit Message Format
 
@@ -114,7 +114,7 @@ Example:
 feat(devbox): bump Node.js LTS
 
 - Rebuild from new NodeSource setup_lts.x
-- Verify opencode2 still present
+- Verify opencode still present
 
 Closes #123
 ```
@@ -151,7 +151,7 @@ The single AI layer (after base setup) is validated per `AI_VERIFY_MODE`:
 
 | Mode | When to use | Behavior |
 |------|-------------|----------|
-| `lenient` (default) | Local `docker build` | Hard-fail on missing core tools (`git`, `node`, `opencode2`, `pi`, …). For `ai-full`, missing `claude`/`codex` shims logs a note only (runtime mounts may supply them). Also fails if `opencode2` is missing or old `opencode-ai` is still installed. |
+| `lenient` (default) | Local `docker build` | Hard-fail on missing core tools (`git`, `node`, `opencode`, `pi`, …). For `ai-full`, missing `claude`/`codex` shims logs a note only (runtime mounts may supply them). Also fails if `opencode` is missing or the beta-fork `opencode2` is still installed. |
 | `strict` | CI (`.github/workflows/devbox.yml`) | Same as lenient, plus `ai-full` fails if `claude` or `codex` is not on `PATH` after global install. CI also builds with `AI_TOOLS_CACHEBUST=$GITHUB_RUN_ID` so the AI layer is not stale. |
 
 ```bash
@@ -161,7 +161,7 @@ docker build --build-arg AI_VERIFY_MODE=strict -t devbox:strict .
 
 ## Global npm Supply-Chain
 
-- Images install AI CLIs at **npm `@latest`** (except `opencode2` which is `@opencode-ai/cli@beta`): `standard` → `opencode2`, `pi`, `asm`; `ai-full` → plus `claude`, `codex`, `herdr`, `pi-extensions`
+- Images install AI CLIs at **npm `@latest`**: `standard` → `opencode`, `pi`, `asm`; `ai-full` → plus `claude`, `codex`, `herdr`, `pi-extensions`
 - CI builds use `AI_TOOLS_CACHEBUST` so the AI layer is not served from a stale Docker cache
 - Inside a running container, `update-ai-tools` upgrades the same set (plus re-installs `luongnv89/idd` + `luongnv89/skills` via `asm`)
 
@@ -178,7 +178,7 @@ docker build --build-arg AI_VERIFY_MODE=strict -t devbox:strict .
 Before submitting:
 
 1. `docker build -t devbox .` succeeds from repository root
-2. `docker run --rm devbox bash -c 'cat /etc/os-release | grep 26.04; whoami; echo $SHELL; opencode2 --version; which opencode && echo "old opencode should be absent" && exit 1 || echo "opencode absent ok"'`
+2. `docker run --rm devbox bash -c 'cat /etc/os-release | grep 26.04; whoami; echo $SHELL; opencode --version; which opencode2 && echo "beta-fork opencode2 should be absent" && exit 1 || echo "opencode2 absent ok"'`
 3. Container starts and `zsh` is accessible; workspace mounts work (`-v "$PWD":/workspace`)
 
 ## Documentation

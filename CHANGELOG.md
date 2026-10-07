@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **AI Coding Agents:** `claude` (Claude Code, `@anthropic-ai/claude-code`) and `codex` (OpenAI Codex CLI, `@openai/codex`) baked into the image, with MOTD version lines, `update-ai-tools` upgrade paths, entrypoint mount announcements (`~/.claude`, `~/.codex`), and e2e test coverage
+
+### Changed
+- **opencode:** replaced the `@opencode-ai/cli@beta` community fork (`opencode2` binary) with the official release via the `opencode.ai/v2` install script → `opencode` (1.x)
+
 ## [1.0.0] — 2025-01-11
 
 ### 🎉 Initial Release
