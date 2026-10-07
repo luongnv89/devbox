@@ -11,7 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AI Coding Agents:** `claude` (Claude Code, `@anthropic-ai/claude-code`) and `codex` (OpenAI Codex CLI, `@openai/codex`) baked into the image, with MOTD version lines, `update-ai-tools` upgrade paths, entrypoint mount announcements (`~/.claude`, `~/.codex`), and e2e test coverage
 
 ### Changed
-- **opencode:** replaced the `@opencode-ai/cli@beta` community fork (`opencode2` binary) with the official release via the `opencode.ai/v2` install script → `opencode` (1.x)
+- **opencode:** replaced the `@opencode-ai/cli@beta` community fork (`opencode2` binary) with the official release via the `opencode.ai/v2` install script → `opencode` (v2.x); the installer's legacy `opencode2` compat shim is removed from the image
+- **devbox-launch.sh:** SSH config volume is now refreshed on every launch instead of created once; git identity is read from the host's `git config` instead of a hardcoded maintainer identity; interactive containers run with `--rm` (detached containers keep running via `sleep infinity`); new `-D/--dry-run` flag prints the docker command without executing it
+
+### Fixed
+- **devbox-launch.sh on macOS:** `sed -i` (GNU-only) crashed the script under `set -e` whenever `~/.ssh/config` existed and the SSH volume was absent; portable `sed -i.bak` + `$HOME`-based rewrites (previously hardcoded `/home/montimage`, which never matched `/Users/*` paths)
+- **`-d/--detach`:** `-d` was appended after the image name so it reached the entrypoint instead of Docker — containers ran in the foreground and exited instantly; `sleep infinity` now runs inside the container via `exec sleep infinity`
+- **`-e/--env`:** the env loop prepended a second `-e` per element (`docker run -e -e FOO=bar` → invalid invocation)
+- **init script:** zsh `no matches found` noise on `chmod` lines for absent key types, silenced via `setopt NULL_GLOB`; socket files in `~/.ssh` no longer abort the volume copy (fatal under GNU `cp`)
 
 ## [1.0.0] — 2025-01-11
 

@@ -11,15 +11,16 @@
 #   -p, --port PORT        Port mapping (can be specified multiple times, e.g. -p 5173:5173)
 #   -e, --env KEY=VALUE    Environment variable (can be specified multiple times)
 #   -d, --detach           Run container in detached mode (no attach)
+#   -D, --dry-run          Print the docker run command without executing it
 #   -h, --help             Show this help message
 #
 # Features:
 #   - Workspace mounting (user-specified or current directory)
 #   - Auto-generated or custom container names (prefix: devbox-)
 #   - AI skills-only mounting (~/.agents → /root/.agents)
-#   - SSH config volume with rewritten host paths for container compatibility
-#   - gh CLI auth for GitHub operations
-#   - Automatic container attachment after startup (unless --detach)
+#   - SSH config volume refreshed on every launch, host paths rewritten for the container
+#   - gh CLI auth + host git identity for GitHub operations
+#   - Automatic container attachment after startup (interactive runs are --rm)
 
 set -euo pipefail
 
@@ -31,6 +32,12 @@ DETACH=false
 declare -a PORT_MAPS=()
 declare -a ENV_VARS=()
 SSH_VOL="devbox-ssh-config"
+DRY_RUN=false
+FINAL_CMD=""
+# Git identity is read from the host so commits in the container are attributed
+# to whoever launched it, not a hardcoded maintainer.
+GIT_USER_NAME="$(git config --global user.name 2>/dev/null || true)"
+GIT_USER_EMAIL="$(git config --global user.email 2>/dev/null || true)"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 usage() {
@@ -89,6 +96,10 @@ while [[ $# -gt 0 ]]; do
         DETACH=true
         shift
         ;;
+    -D | --dry-run)
+        DRY_RUN=true
+        shift
+        ;;
     -h | --help)
         usage
         ;;
@@ -99,7 +110,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Validation ────────────────────────────────────────────────────────────────
-check_docker
+# Dry run only renders the command — it must not touch the Docker daemon.
+if [[ "$DRY_RUN" == false ]]; then
+    check_docker
+fi
 
 # Default workspace to current directory if not specified
 if [[ -z "$WORKSPACE" ]]; then
@@ -119,44 +133,13 @@ if [[ -z "$CONTAINER_NAME" ]]; then
     CONTAINER_NAME="$(generate_name)"
 fi
 
-# Check if container name already exists
-if docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
+# Check if container name already exists (skipped on dry run — no daemon needed)
+if [[ "$DRY_RUN" == false ]] && docker ps -a --format '{{.Names}}' | grep -qx "$CONTAINER_NAME"; then
     log_error "A container with name '$CONTAINER_NAME' already exists. Use --name to specify a different name, or remove the existing container."
-fi
-
-# ── Prepare SSH volume (rewrites host paths for container) ───────────────────
-if [[ -d "$HOME/.ssh" ]] && ls "$HOME/.ssh" >/dev/null 2>&1; then
-    if ! docker volume inspect "$SSH_VOL" &>/dev/null 2>&1; then
-        SSH_TMP=$(mktemp -d)
-        cp -a "$HOME/.ssh" "$SSH_TMP/"
-        # Rewrite host paths to container paths
-        if [[ -f "$SSH_TMP/.ssh/config" ]]; then
-            sed -i \
-                -e "s|/home/montimage/.ssh/|/root/.ssh/|g" \
-                -e "s|/home/\${USER}/.ssh/|/root/.ssh/|g" \
-                -e "s|/home/montimage/|/root/|g" \
-                "$SSH_TMP/.ssh/config"
-        fi
-        docker volume create "$SSH_VOL"
-        docker run --rm \
-            -v "$SSH_TMP/.ssh:/src:ro" \
-            -v "$SSH_VOL:/dst" \
-            alpine:latest \
-            cp -a /src/. /dst/
-        rm -rf "$SSH_TMP"
-    fi
-    log_info "Mounted ~/.ssh → /root/.ssh (via Docker volume, paths rewritten)"
-else
-    log_warn "$HOME/.ssh not found — SSH authentication not available"
 fi
 
 # ── Build docker run command ─────────────────────────────────────────────────
 CMD=(docker run)
-
-# Interactive and TTY for attachment
-if [[ "$DETACH" == false ]]; then
-    CMD+=("-it")
-fi
 
 # Container name
 CMD+=("--name" "$CONTAINER_NAME")
@@ -182,20 +165,46 @@ if [[ -d "$HOME/.config/gh" ]]; then
     log_info "Mounted ~/.config/gh → /root/.config/gh"
 fi
 
-# Port mappings
+# Git identity for in-container commits (propagated via env, configured below)
+if [[ -n "$GIT_USER_NAME" ]]; then
+    CMD+=("-e" "DEVBOX_GIT_NAME=$GIT_USER_NAME")
+fi
+if [[ -n "$GIT_USER_EMAIL" ]]; then
+    CMD+=("-e" "DEVBOX_GIT_EMAIL=$GIT_USER_EMAIL")
+fi
+
+# Port mappings (stored as "-p" "spec" pairs — append verbatim)
 for i in "${!PORT_MAPS[@]}"; do
     CMD+=("${PORT_MAPS[$i]}")
 done
 
-# Environment variables
+# Environment variables (stored as "-e" "KEY=VALUE" pairs — append verbatim)
 for i in "${!ENV_VARS[@]}"; do
-    CMD+=("-e" "${ENV_VARS[$i]}")
+    CMD+=("${ENV_VARS[$i]}")
 done
 
-# Entry point: fix SSH permissions, configure git, setup gh auth, then exec zsh
+# Mode flags must precede the image name: detached keeps the container alive via
+# `sleep infinity`; interactive gets a TTY when launched from a terminal and is
+# removed on exit.
 CMD+=("--entrypoint" "zsh")
+if [[ "$DETACH" == true ]]; then
+    CMD+=("-d")
+    FINAL_CMD="sleep infinity"
+else
+    if [[ -t 0 && -t 1 ]]; then
+        CMD+=("-it")
+    else
+        log_warn "No TTY detected — interactive shell will exit immediately. Use -d/--detach for a background container."
+    fi
+    CMD+=("--rm")
+    FINAL_CMD="zsh"
+fi
 CMD+=("$IMAGE")
+
+# Inline init: fix SSH permissions (NULL_GLOB makes missing key types a no-op
+# instead of zsh "no matches found" errors), apply host git identity, setup gh.
 CMD+=(-c '
+    setopt NULL_GLOB
     chown -R root:root /root/.ssh
     chmod 700 /root/.ssh
     chmod 600 /root/.ssh/config /root/.ssh/config.bak 2>/dev/null || true
@@ -203,12 +212,55 @@ CMD+=(-c '
     chmod 644 /root/.ssh/*.pub 2>/dev/null || true
     chmod 644 /root/.ssh/known_hosts /root/.ssh/known_hosts.old 2>/dev/null || true
     chmod 644 /root/.ssh/authorized_keys 2>/dev/null || true
-    git config --global user.name "Lucian N. Viorel"
-    git config --global user.email "luongnv89@gmail.com"
+    if [ -n "${DEVBOX_GIT_NAME:-}" ]; then git config --global user.name "$DEVBOX_GIT_NAME"; fi
+    if [ -n "${DEVBOX_GIT_EMAIL:-}" ]; then git config --global user.email "$DEVBOX_GIT_EMAIL"; fi
     git config --global init.defaultBranch main
     gh auth setup-git 2>/dev/null
-    exec zsh
+    exec '"$FINAL_CMD"'
 ')
+
+# ── Dry run: render the command, no side effects ──────────────────────────────
+if [[ "$DRY_RUN" == true ]]; then
+    log_info "Container: $CONTAINER_NAME"
+    log_info "Image:     $IMAGE"
+    log_info "Workspace: $WORKSPACE"
+    log_info "Would execute:"
+    printf ' %q' "${CMD[@]}"
+    echo ""
+    exit 0
+fi
+
+# ── Prepare SSH volume (rewrites host paths for container) ───────────────────
+# Refreshed on every launch so new keys/config on the host reach the container.
+if [[ -d "$HOME/.ssh" ]] && ls "$HOME/.ssh" >/dev/null 2>&1; then
+    if ! docker volume inspect "$SSH_VOL" >/dev/null 2>&1; then
+        docker volume create "$SSH_VOL" >/dev/null
+    fi
+    SSH_TMP=$(mktemp -d)
+    # Runtime sockets (e.g. ssh-agent dirs) can't be copied and are useless in
+    # the container — hide their noise; GNU cp would otherwise abort the copy.
+    cp -a "$HOME/.ssh" "$SSH_TMP/" 2>&1 | grep -v 'socket' >&2 || true
+    # Rewrite host paths to container paths. `sed -i.bak` is the portable form —
+    # plain `sed -i` fails on BSD/macOS sed (it eats `-e` as the backup suffix).
+    if [[ -f "$SSH_TMP/.ssh/config" ]]; then
+        sed -i.bak \
+            -e "s|${HOME}/.ssh/|/root/.ssh/|g" \
+            -e 's|/home/${USER}/.ssh/|/root/.ssh/|g' \
+            -e 's|/Users/${USER}/.ssh/|/root/.ssh/|g' \
+            -e "s|${HOME}/|/root/|g" \
+            "$SSH_TMP/.ssh/config"
+        rm -f "$SSH_TMP/.ssh/config.bak"
+    fi
+    docker run --rm \
+        -v "$SSH_TMP/.ssh:/src:ro" \
+        -v "$SSH_VOL:/dst" \
+        alpine:latest \
+        sh -c 'rm -rf /dst/* /dst/.[!.]* /dst/..?* 2>/dev/null || true; cp -a /src/. /dst/'
+    rm -rf "$SSH_TMP"
+    log_info "Refreshed ~/.ssh → /root/.ssh (volume: $SSH_VOL)"
+else
+    log_warn "$HOME/.ssh not found — SSH authentication not available"
+fi
 
 # ── Launch ────────────────────────────────────────────────────────────────────
 log_info "Container: $CONTAINER_NAME"
@@ -218,8 +270,6 @@ log_info "───────────────────────�
 
 if [[ "$DETACH" == true ]]; then
     log_info "Starting in detached mode..."
-    CMD+=("-d")
-    CMD+=("sleep" "infinity")
     "${CMD[@]}"
     log_info "Container '$CONTAINER_NAME' started in background."
     log_info "Enter with: docker exec -it $CONTAINER_NAME zsh"
