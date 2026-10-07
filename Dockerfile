@@ -169,7 +169,7 @@ find /root/.oh-my-zsh /root/.vim/plugged -name ".git" -type d -prune -exec rm -r
 mkdir -p /workspace && echo "root" > /etc/docker-dev-run-as
 EOF
 
-# ---------- AI Tools: opencode2, pi (+ extensions), herdr ----------
+# ---------- AI Tools: opencode, claude, codex, pi (+ extensions), herdr ----------
 ARG AI_VERIFY_MODE=strict
 
 RUN <<'EOF'
@@ -179,19 +179,31 @@ export PATH="/root/.local/bin:/usr/local/bin:${PATH}"
 
 echo "[AI] Installing AI tools..."
 
-# 1. opencode2
-npm install -g @opencode-ai/cli@beta
+# 1. opencode via official installer (installs to ~/.opencode/bin; symlinked into
+# /usr/local/bin so non-login shells see it — the image manages PATH itself)
+curl -fsSL https://opencode.ai/v2/install | bash -s -- --no-modify-path
+if [ -f /root/.opencode/bin/opencode ] && [ ! -f /usr/local/bin/opencode ]; then
+    ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode
+fi
+# The installer also drops a legacy `opencode2` compat shim — not wanted here.
+rm -f /root/.opencode/bin/opencode2
 
-# 2. herdr
+# 2. Claude Code
+npm install -g @anthropic-ai/claude-code
+
+# 3. Codex CLI
+npm install -g @openai/codex
+
+# 4. herdr
 curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin bash || echo "[AI] Warning: herdr install failed (non-fatal)" >&2
 
-# 3. pi via official installer
+# 5. pi via official installer
 curl -fsSL https://pi.dev/install.sh | sh
 if [ -f /root/.local/bin/pi ] && [ ! -f /usr/local/bin/pi ]; then
     ln -sf /root/.local/bin/pi /usr/local/bin/pi
 fi
 
-# 4. pi extensions
+# 6. pi extensions
 if command -v pi >/dev/null 2>&1; then
     echo "[AI] Installing pi extensions..."
     pi install npm:opencode-pi || echo "[AI] Warning: pi opencode-pi failed (non-fatal)" >&2
@@ -202,7 +214,7 @@ fi
 
 # Verification
 if [ "${AI_VERIFY_MODE}" = "strict" ]; then
-    for cmd in opencode2 pi; do
+    for cmd in opencode claude codex pi; do
         if ! command -v "$cmd" >/dev/null 2>&1; then
             echo "[AI] Error: Missing required command '$cmd'" >&2
             exit 1
@@ -223,10 +235,12 @@ export PATH="/root/.local/bin:/usr/local/bin:\${PATH}"
     echo "🚀 Welcome to devbox! [${BUILD_VERSION}]"
     command -v python3   >/dev/null 2>&1 && echo "🐍 $(python3 --version)"
     command -v node      >/dev/null 2>&1 && echo "🟢 Node.js $(node --version)"
-    # These three already print their own name, so do not prefix it again.
+    # These already print their own name, so do not prefix it again.
     command -v uv        >/dev/null 2>&1 && echo "⚡ $(uv --version 2>/dev/null | head -1)"
-    command -v opencode2 >/dev/null 2>&1 && echo "🤖 $(opencode2 --version 2>/dev/null | head -1)"
+    command -v claude    >/dev/null 2>&1 && echo "🟠 $(claude --version 2>/dev/null | head -1)"
+    command -v codex     >/dev/null 2>&1 && echo "📦 $(codex --version 2>/dev/null | head -1)"
     command -v herdr     >/dev/null 2>&1 && echo "🐑 $(herdr --version 2>/dev/null | head -1)"
+    command -v opencode  >/dev/null 2>&1 && echo "🤖 $(opencode --version 2>/dev/null | head -1)"
     command -v pi        >/dev/null 2>&1 && echo "🥧 pi $(pi --version 2>/dev/null | head -1)"
     echo ""
 } > /etc/devbox-motd
@@ -243,8 +257,16 @@ if [ "$(id -u)" -ne 0 ]; then
     echo "Error: update-ai-tools must run as root (or with sudo)" >&2; exit 1
 fi
 export PATH="/root/.local/bin:/usr/local/bin:${PATH}"
-echo "[AI] Updating opencode2..."
-npm install -g @opencode-ai/cli@beta
+echo "[AI] Updating opencode..."
+curl -fsSL https://opencode.ai/v2/install | bash -s -- --no-modify-path || true
+if [ -f /root/.opencode/bin/opencode ]; then
+    ln -sf /root/.opencode/bin/opencode /usr/local/bin/opencode
+fi
+rm -f /root/.opencode/bin/opencode2
+echo "[AI] Updating Claude Code..."
+npm install -g @anthropic-ai/claude-code
+echo "[AI] Updating codex..."
+npm install -g @openai/codex
 echo "[AI] Updating herdr..."
 curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR=/usr/local/bin bash || true
 echo "[AI] Updating pi..."
@@ -301,6 +323,8 @@ if [ -t 1 ] || [ -t 2 ]; then
     for mount_label in \
         "${HOME_DIR}/.ssh:SSH config" \
         "${HOME_DIR}/.config/opencode:OpenCode config" \
+        "${HOME_DIR}/.claude:Claude Code config" \
+        "${HOME_DIR}/.codex:Codex config" \
         "${HOME_DIR}/.pi:Pi agent config" \
         "${HOME_DIR}/.agents:Agent skills" \
         "/workspace:Workspace"; do
@@ -311,7 +335,7 @@ if [ -t 1 ] || [ -t 2 ]; then
         fi
     done
     if command -v update-ai-tools >/dev/null 2>&1; then
-        echo "[dev] AI CLIs: run update-ai-tools to upgrade opencode2/pi/herdr to latest." >&2
+        echo "[dev] AI CLIs: run update-ai-tools to upgrade opencode/claude/codex/pi/herdr to latest." >&2
     fi
 fi
 exec "$@"

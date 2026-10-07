@@ -79,9 +79,9 @@ devbox runs as `root` by default with a developer-trusted entrypoint (`/entrypoi
   Then mount host configs under `/home/dev/...` (e.g., `-v "$HOME/.ssh":/home/dev/.ssh:ro`).
 - Prefer `--user` and avoid `sudo` inside the container when handling untrusted inputs.
 
-### Floating beta dependencies and image pinning
+### Floating dependencies and image pinning
 
-- `opencode2` comes from `npm install -g @opencode-ai/cli@beta` at **build time**; `update-ai-tools` inside the container upgrades to `@latest`/`@beta` again. A rebuild on a different date may pull a different beta.
+- `opencode` comes from the official installer (`curl -fsSL https://opencode.ai/v2/install | bash`) at **build time**; `update-ai-tools` inside the container re-runs the same installer for the latest release. A rebuild on a different date may pull a different release.
 - **For reproducible CI, pin to the immutable SHA tag** published on pushes to `main`:
 
   ```bash

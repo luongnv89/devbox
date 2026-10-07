@@ -23,7 +23,9 @@ Published to GitHub Container Registry as `ghcr.io/luongnv89/devbox`.
   - **Node.js LTS** + `corepack` (`pnpm`, `yarn`).
   - **Python 3** (`python3-venv`, `python3-pip`, `python3-dev`) + **`uv`** (ultra-fast package manager). `pip install` works directly against the system interpreter (`PIP_BREAK_SYSTEM_PACKAGES=1`, safe inside a disposable container); use `python3 -m venv` or `uv venv` for per-project isolation.
 - **AI Coding Agents & Extensions:**
-  - **`opencode2`**: OpenCode AI CLI (`@opencode-ai/cli@beta`).
+  - **`opencode`**: OpenCode AI CLI (installed via official `opencode.ai` installer).
+  - **`claude`**: Claude Code (`@anthropic-ai/claude-code`).
+  - **`codex`**: OpenAI Codex CLI (`@openai/codex`).
   - **`pi`**: Pi Coding Agent (installed via official `pi.dev` installer).
     - `npm:opencode-pi`
     - `npm:statusline-pi`
@@ -60,7 +62,9 @@ Credentials and skills are **not stored in the image**. Mount your host configur
 
 | Host Path | Container Path | Purpose |
 | :--- | :--- | :--- |
-| `~/.config/opencode` | `/root/.config/opencode` | `opencode2` config & auth token |
+| `~/.config/opencode` | `/root/.config/opencode` | `opencode` config & auth token |
+| `~/.claude` | `/root/.claude` | `claude` config & auth |
+| `~/.codex` | `/root/.codex` | `codex` config & auth |
 | `~/.pi` | `/root/.pi` | `pi` settings, auth, extensions & skills |
 | `~/.agents` | `/root/.agents` | Shared agent skills |
 | `~/.ssh` | `/root/.ssh:ro` | SSH keys for Git (mounted read-only) |
@@ -71,6 +75,8 @@ Credentials and skills are **not stored in the image**. Mount your host configur
 docker run --rm -it \
   -v "$PWD":/workspace \
   -v "$HOME/.config/opencode":/root/.config/opencode \
+  -v "$HOME/.claude":/root/.claude \
+  -v "$HOME/.codex":/root/.codex \
   -v "$HOME/.pi":/root/.pi \
   -v "$HOME/.agents":/root/.agents \
   -v "$HOME/.ssh":/root/.ssh:ro \
@@ -79,7 +85,7 @@ docker run --rm -it \
 
 ### Refreshing AI CLIs
 
-To upgrade `opencode2`, `pi`, `pi extensions`, and `herdr` to the latest releases inside a running container:
+To upgrade `opencode`, `claude`, `codex`, `pi`, `pi extensions`, and `herdr` to the latest releases inside a running container:
 
 ```bash
 update-ai-tools
