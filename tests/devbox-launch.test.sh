@@ -2,7 +2,8 @@
 # tests/devbox-launch.test.sh — Automated tests for devbox-launch.sh
 #
 # These tests verify the script's argument parsing, validation, and
-# docker command generation without actually running a container.
+# docker command generation. Argument tests use --dry-run, so no Docker
+# daemon interaction or container launch is required.
 #
 # Usage:
 #   ./tests/devbox-launch.test.sh          # Run all tests
@@ -102,7 +103,7 @@ echo "Test: Argument parsing"
 # Test --workspace / -w
 TOTAL=$((TOTAL + 1))
 mkdir -p /tmp/test-workspace
-output=$(bash "$LAUNCH_SCRIPT" -w /tmp/test-workspace 2>&1 || true)
+output=$(bash "$LAUNCH_SCRIPT" --dry-run -w /tmp/test-workspace 2>&1 || true)
 if echo "$output" | grep -q "Workspace: /tmp/test-workspace"; then
     PASS=$((PASS + 1))
     echo "  ✓ -w/--workspace sets workspace"
@@ -113,7 +114,7 @@ fi
 
 # Test --name / -n
 TOTAL=$((TOTAL + 1))
-output=$(bash "$LAUNCH_SCRIPT" -n my-custom-name 2>&1 || true)
+output=$(bash "$LAUNCH_SCRIPT" --dry-run -n my-custom-name 2>&1 || true)
 if echo "$output" | grep -q "Container: my-custom-name"; then
     PASS=$((PASS + 1))
     echo "  ✓ -n/--name sets container name"
@@ -122,22 +123,64 @@ else
     echo "  ✗ -n/--name failed"
 fi
 
-# Test --detach / -d
+# Test --detach / -d: the -d flag must precede the image (after the image it is
+# an entrypoint argument, not a docker flag), the init script must end with
+# `exec sleep infinity`, and detached containers must NOT carry --rm.
 TOTAL=$((TOTAL + 1))
-output=$(bash "$LAUNCH_SCRIPT" -d 2>&1 || true)
-if echo "$output" | grep -q "detached mode"; then
+output=$(bash "$LAUNCH_SCRIPT" --dry-run -d 2>&1 || true)
+if echo "$output" | grep -qE -- ' -d [^ ]+ -c ' \
+    && echo "$output" | grep -q 'exec sleep infinity' \
+    && ! echo "$output" | grep -q -- '--rm'; then
     PASS=$((PASS + 1))
-    echo "  ✓ -d/--detach enables detached mode"
+    echo "  ✓ -d/--detach runs detached (sleep infinity, -d before image)"
 else
     FAIL=$((FAIL + 1))
-    echo "  ✗ -d/--detach failed"
+    echo "  ✗ -d/--detach produced a broken docker invocation"
+    echo "    output: $output"
+fi
+
+# Test --env / -e: each variable renders as a single "-e KEY=VALUE" pair
+# (regression: the loop used to prepend an extra -e per element → "-e -e FOO=bar")
+TOTAL=$((TOTAL + 1))
+output=$(bash "$LAUNCH_SCRIPT" --dry-run -e FOO=bar -e BAZ=qux 2>&1 || true)
+if echo "$output" | grep -q -- '-e FOO=bar' \
+    && echo "$output" | grep -q -- '-e BAZ=qux' \
+    && ! echo "$output" | grep -q -- '-e -e'; then
+    PASS=$((PASS + 1))
+    echo "  ✓ -e/--env renders one -e per variable"
+else
+    FAIL=$((FAIL + 1))
+    echo "  ✗ -e/--env produced doubled -e flags"
+    echo "    output: $output"
+fi
+
+# Test --port / -p rendering
+TOTAL=$((TOTAL + 1))
+output=$(bash "$LAUNCH_SCRIPT" --dry-run -p 5173:5173 -p 8080:8080 2>&1 || true)
+if echo "$output" | grep -q -- '-p 5173:5173' && echo "$output" | grep -q -- '-p 8080:8080'; then
+    PASS=$((PASS + 1))
+    echo "  ✓ -p/--port renders port mappings"
+else
+    FAIL=$((FAIL + 1))
+    echo "  ✗ -p/--port failed"
+fi
+
+# Test interactive mode: --rm (auto-cleanup) + `exec zsh` as the final command
+TOTAL=$((TOTAL + 1))
+output=$(bash "$LAUNCH_SCRIPT" --dry-run 2>&1 || true)
+if echo "$output" | grep -q -- '--rm' && echo "$output" | grep -q 'exec zsh'; then
+    PASS=$((PASS + 1))
+    echo "  ✓ interactive mode uses --rm and exec zsh"
+else
+    FAIL=$((FAIL + 1))
+    echo "  ✗ interactive mode missing --rm or exec zsh"
 fi
 
 # ── Test: Default workspace is current directory ─────────────────────────────
 echo ""
 echo "Test: Default workspace"
 TOTAL=$((TOTAL + 1))
-output=$(cd /tmp && bash "$LAUNCH_SCRIPT" 2>&1 || true)
+output=$(cd /tmp && bash "$LAUNCH_SCRIPT" --dry-run 2>&1 || true)
 if echo "$output" | grep -q "Workspace: /tmp"; then
     PASS=$((PASS + 1))
     echo "  ✓ Default workspace is current directory"
@@ -150,7 +193,7 @@ fi
 echo ""
 echo "Test: Container name generation"
 TOTAL=$((TOTAL + 1))
-output=$(bash "$LAUNCH_SCRIPT" 2>&1 || true)
+output=$(bash "$LAUNCH_SCRIPT" --dry-run 2>&1 || true)
 # Extract the generated name from the output
 generated_name=$(echo "$output" | sed -n 's/.*Container: \([^ ]*\).*/\1/p' || true)
 if [[ "$generated_name" == devbox-* ]]; then
@@ -165,7 +208,7 @@ fi
 echo ""
 echo "Test: Docker image configuration"
 TOTAL=$((TOTAL + 1))
-output=$(bash "$LAUNCH_SCRIPT" 2>&1 || true)
+output=$(bash "$LAUNCH_SCRIPT" --dry-run 2>&1 || true)
 if echo "$output" | grep -q "Image:.*ghcr.io/luongnv89/devbox"; then
     PASS=$((PASS + 1))
     echo "  ✓ Default image is ghcr.io/luongnv89/devbox"
@@ -178,7 +221,8 @@ fi
 echo ""
 echo "Test: Validation"
 TOTAL=$((TOTAL + 1))
-bash "$LAUNCH_SCRIPT" -w /nonexistent/path 2>/dev/null || exit_code=$?
+exit_code=0
+bash "$LAUNCH_SCRIPT" --dry-run -w /nonexistent/path 2>/dev/null || exit_code=$?
 if [[ ${exit_code:-0} -ne 0 ]]; then
     PASS=$((PASS + 1))
     echo "  ✓ Rejects nonexistent workspace directory"
@@ -189,6 +233,7 @@ fi
 
 # ── Test: Validation — unknown option ────────────────────────────────────────
 TOTAL=$((TOTAL + 1))
+exit_code=0
 bash "$LAUNCH_SCRIPT" --unknown-option 2>/dev/null || exit_code=$?
 if [[ ${exit_code:-0} -ne 0 ]]; then
     PASS=$((PASS + 1))
@@ -212,24 +257,25 @@ else
     echo "  ✗ Missing ~/.agents mount"
 fi
 
-# SSH mount
+# SSH volume mount (script uses a named Docker volume, not a bind mount)
 TOTAL=$((TOTAL + 1))
-if grep -q '\.ssh.*:/root/\.ssh' "$LAUNCH_SCRIPT"; then
+if grep -q ':/root/\.ssh' "$LAUNCH_SCRIPT"; then
     PASS=$((PASS + 1))
-    echo "  ✓ Mounts ~/.ssh → /root/.ssh"
+    echo "  ✓ Mounts SSH volume → /root/.ssh"
 else
     FAIL=$((FAIL + 1))
-    echo "  ✗ Missing ~/.ssh mount"
+    echo "  ✗ Missing /root/.ssh volume mount"
 fi
 
-# SSH agent forwarding
+# SSH path rewrite must be portable (sed -i.bak) and host-agnostic ($HOME) —
+# plain `sed -i` and a hardcoded /home/<user> both broke on macOS.
 TOTAL=$((TOTAL + 1))
-if grep -q 'SSH_AUTH_SOCK' "$LAUNCH_SCRIPT"; then
+if grep -q 'sed -i\.bak' "$LAUNCH_SCRIPT" && grep -q 's|\${HOME}' "$LAUNCH_SCRIPT"; then
     PASS=$((PASS + 1))
-    echo "  ✓ Forwards SSH agent"
+    echo "  ✓ SSH path rewrite uses portable sed with \$HOME"
 else
     FAIL=$((FAIL + 1))
-    echo "  ✗ Missing SSH agent forwarding"
+    echo "  ✗ SSH path rewrite is not portable or still hardcodes the home path"
 fi
 
 # ── Test: Script contains required features ──────────────────────────────────
