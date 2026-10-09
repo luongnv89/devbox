@@ -2,7 +2,8 @@
 # tests/docker-e2e.test.sh — End-to-end test for the devbox Docker image.
 #
 # Verifies that the image builds successfully, a container can be created,
-# and the five AI CLI tools (opencode, claude, codex, pi, herdr) execute without errors.
+# and the AI CLI tools (opencode, claude, codex, pi, herdr), asm, the baked
+# agent skills, and context-stats all execute without errors.
 #
 # Usage:
 #   ./tests/docker-e2e.test.sh          # Run all tests
@@ -307,6 +308,46 @@ updated_output=$(docker exec --user 1000:1000 -e HOME=/tmp "$CONTAINER_NAME" \
     /usr/local/bin/opencode --version 2>&1) || updated_exit=$?
 assert_exit_code "numeric user can execute updated OpenCode" 0 "$updated_exit"
 assert_eq "updater installed the controlled binary" "opencode v0.0.0-updater-test" "$updated_output"
+
+# ── Regression: asm + curated skill collections ──────────────────────────────
+echo ""
+echo "Test 11: asm CLI and curated agent skills"
+asm_exit=0
+asm_output=$(docker exec "$CONTAINER_NAME" asm --version 2>&1) || asm_exit=$?
+assert_exit_code "asm executes without error" 0 "$asm_exit"
+assert_contains "asm prints its version" "$asm_output" 'asm v[0-9]\+\.[0-9]\+'
+
+skills_exit=0
+skills_output=$(docker exec "$CONTAINER_NAME" bash -c '
+    set -e
+    for dir in /root/.claude/skills /root/.agents/skills; do
+        test -f "$dir/code-review/SKILL.md"     # github:luongnv89/skills
+        test -f "$dir/issue-resolver/SKILL.md"  # github:luongnv89/idd
+        test "$(find "$dir" -name SKILL.md | wc -l)" -ge 45
+    done
+    echo "claude=$(find /root/.claude/skills -name SKILL.md | wc -l) agents=$(find /root/.agents/skills -name SKILL.md | wc -l)"
+' 2>&1) || skills_exit=$?
+assert_exit_code "skills installed for Claude Code and the shared agents dir" 0 "$skills_exit"
+assert_contains "both skill collections are present for both providers" "$skills_output" 'claude=4[5-9] agents=4[5-9]'
+
+# ── Regression: context-stats pre-wired for Claude Code ──────────────────────
+echo ""
+echo "Test 12: context-stats Claude Code status line"
+cs_exit=0
+cs_output=$(docker exec "$CONTAINER_NAME" context-stats --version 2>&1) || cs_exit=$?
+assert_exit_code "context-stats executes without error" 0 "$cs_exit"
+assert_contains "context-stats prints its version" "$cs_output" 'context-stats [0-9]\+\.[0-9]\+'
+
+wired_exit=0
+wired_output=$(docker exec "$CONTAINER_NAME" bash -c '
+    set -e
+    command -v claude-statusline
+    test "$(jq -r ".statusLine.command" /root/.claude/settings.json)" = "claude-statusline"
+    context-stats doctor >/dev/null 2>&1
+    echo "statusline-wired"
+' 2>&1) || wired_exit=$?
+assert_exit_code "statusLine wired and doctor reports a healthy install" 0 "$wired_exit"
+assert_contains "claude-statusline resolves and is configured" "$wired_output" 'statusline-wired'
 
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo ""
