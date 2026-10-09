@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **AI Coding Agents:** `claude` (Claude Code, `@anthropic-ai/claude-code`) and `codex` (OpenAI Codex CLI, `@openai/codex`) baked into the image, with MOTD version lines, `update-ai-tools` upgrade paths, entrypoint mount announcements (`~/.claude`, `~/.codex`), and e2e test coverage
+- **Agent skills:** `asm` (agent-skill-manager) baked into the image; the curated collections `luongnv89/skills` and `luongnv89/idd` are installed at build time for Claude Code (`~/.claude/skills`) and the shared agents directory (`~/.agents/skills`), with build-time presence checks and e2e coverage
+- **context-stats:** installed via pip with the Claude Code status line pre-wired (`~/.claude/settings.json` → `claude-statusline`), verified during the build by `context-stats doctor`, with a MOTD version line and e2e coverage
 
 ### Changed
 - **opencode:** replaced the `@opencode-ai/cli@beta` community fork (`opencode2` binary) with the official release via the `opencode.ai/v2` install script → `opencode` (v2.x); the installer's legacy `opencode2` compat shim is removed from the image
+- **update-ai-tools:** also upgrades `asm`, runs `asm update --yes` for the installed skill collections, and upgrades `context-stats`
 - **devbox-launch.sh:** SSH config volume is now refreshed on every launch instead of created once; git identity is read from the host's `git config` instead of a hardcoded maintainer identity; interactive containers run with `--rm` (detached containers keep running via `sleep infinity`); new `-D/--dry-run` flag prints the docker command without executing it
 
 ### Fixed

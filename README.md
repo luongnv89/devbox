@@ -32,6 +32,9 @@ Published to GitHub Container Registry as `ghcr.io/luongnv89/devbox`.
     - `npm:timestamp-pi`
     - `npm:pi-subagents`
   - **`herdr`**: AI agent orchestration tool.
+  - **`asm`**: Agent Skill Manager (`agent-skill-manager`) — install, search, audit, and organize skills across every supported agent.
+  - **Skill collections:** [`luongnv89/skills`](https://github.com/luongnv89/skills) and [`luongnv89/idd`](https://github.com/luongnv89/idd) are installed at build time by `asm` as real copies for both **Claude Code** (`~/.claude/skills`) and the **shared agents directory** (`~/.agents/skills`).
+  - **`context-stats`**: Claude Code context/token analytics — the status line is pre-configured in `~/.claude/settings.json` (`claude-statusline`), with `context-stats graph`, `context-stats report`, and `context-stats sessions` for deep dives.
 - **Developer Tools:** `git` + `git-lfs` + `openssh-client`, `gh` (GitHub CLI).
 
 ---
@@ -58,7 +61,7 @@ docker exec -it my-dev zsh
 
 ## 🤖 AI Tools & Configuration Mounts
 
-Credentials and skills are **not stored in the image**. Mount your host configurations and skill repositories as needed:
+Credentials are **not stored in the image**. The skill collections are baked in; mount your host configurations to override them:
 
 | Host Path | Container Path | Purpose |
 | :--- | :--- | :--- |
@@ -68,6 +71,8 @@ Credentials and skills are **not stored in the image**. Mount your host configur
 | `~/.pi` | `/root/.pi` | `pi` settings, auth, extensions & skills |
 | `~/.agents` | `/root/.agents` | Shared agent skills |
 | `~/.ssh` | `/root/.ssh:ro` | SSH keys for Git (mounted read-only) |
+
+> Mounting `~/.claude` or `~/.agents` replaces the baked-in skill collections — and, for `~/.claude`, the pre-configured `context-stats` status line — with your host's content.
 
 ### Example with AI & SSH Mounts
 
@@ -85,10 +90,19 @@ docker run --rm -it \
 
 ### Refreshing AI CLIs
 
-To upgrade `opencode`, `claude`, `codex`, `pi`, `pi extensions`, and `herdr` to the latest releases inside a running container:
+To upgrade `opencode`, `claude`, `codex`, `pi`, `pi extensions`, `herdr`, `asm` (plus every `asm`-managed skill via `asm update --yes`), and `context-stats` inside a running container:
 
 ```bash
 update-ai-tools
+```
+
+Manage the baked-in skills directly with `asm`:
+
+```bash
+asm list                          # every installed skill, every agent
+asm search "code review"          # search installed and catalog skills
+asm install github:owner/repo --all -p claude -y
+asm update --yes                  # update outdated skills
 ```
 
 ---

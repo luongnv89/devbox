@@ -243,6 +243,10 @@ export PATH="/root/.local/bin:/usr/local/bin:\${PATH}"
     command -v herdr     >/dev/null 2>&1 && echo "🐑 $(herdr --version 2>/dev/null | head -1)"
     command -v opencode  >/dev/null 2>&1 && echo "🤖 $(opencode --version 2>/dev/null | head -1)"
     command -v pi        >/dev/null 2>&1 && echo "🥧 pi $(pi --version 2>/dev/null | head -1)"
+    # asm/context-stats arrive in the layer after this script is written, so
+    # their substitutions must resolve at run time (\$), not build time.
+    command -v asm           >/dev/null 2>&1 && echo "🧩 \$(asm --version 2>/dev/null | head -1)"
+    command -v context-stats >/dev/null 2>&1 && echo "📊 \$(context-stats --version 2>/dev/null | head -1)"
     echo ""
 } > /etc/devbox-motd
 MOTD_EOF
@@ -277,6 +281,12 @@ curl -fsSL https://pi.dev/install.sh | sh || true
 if command -v pi >/dev/null 2>&1; then
     pi install npm:opencode-pi npm:statusline-pi npm:timestamp-pi npm:pi-subagents || true
 fi
+echo "[AI] Updating asm (agent-skill-manager)..."
+npm install -g agent-skill-manager
+echo "[AI] Updating installed agent skills..."
+asm update --yes || echo "[AI] Warning: some agent skills failed to update (non-fatal)" >&2
+echo "[AI] Updating context-stats..."
+pip3 install --upgrade context-stats || echo "[AI] Warning: context-stats update failed (non-fatal)" >&2
 # Keep the login banner in sync with the freshly installed versions.
 command -v devbox-genmotd >/dev/null 2>&1 && devbox-genmotd
 echo "[AI] All AI tools updated."
@@ -288,6 +298,65 @@ npm cache clean --force 2>/dev/null || true
 rm -rf /root/.npm /root/.cache /tmp/* /var/tmp/*
 
 echo "[AI] Tooling install complete."
+EOF
+
+# ---------- Agent skills (asm) + context-stats ----------
+RUN <<'EOF'
+set -e
+export HOME=/root
+export PATH="/root/.local/bin:/usr/local/bin:${PATH}"
+export GIT_TERMINAL_PROMPT=0
+
+echo "[Skills] Installing agent-skill-manager (asm)..."
+npm install -g agent-skill-manager
+asm --version | head -1
+
+# Curated skill collections, as real copies for two providers:
+#   agents -> ~/.agents/skills  (shared by most harnesses; devbox-launch.sh may
+#            bind-mount the host's ~/.agents over this path)
+#   claude -> ~/.claude/skills  (Claude Code does not read ~/.agents, and its
+#            directory is not bind-mounted, so this copy survives a host
+#            ~/.agents mount)
+# Non-interactive installs require -p and -y; -s global selects the home paths.
+for provider in agents claude; do
+    echo "[Skills] Installing curated skills for provider: ${provider}"
+    asm install github:luongnv89/skills --all -p "${provider}" -s global -y --force
+    asm install github:luongnv89/idd --all -p "${provider}" -s global -y --force
+done
+
+# Fail the build if either collection is incomplete in either provider.
+for skills_dir in /root/.agents/skills /root/.claude/skills; do
+    for skill in code-review issue-resolver diagram-generator; do
+        [ -f "${skills_dir}/${skill}/SKILL.md" ] || {
+            echo "[Skills] Error: missing ${skills_dir}/${skill}" >&2
+            exit 1
+        }
+    done
+    count="$(find "${skills_dir}" -name SKILL.md | wc -l)"
+    [ "${count}" -ge 45 ] || {
+        echo "[Skills] Error: only ${count} skills found in ${skills_dir}" >&2
+        exit 1
+    }
+done
+
+echo "[Skills] Installing context-stats..."
+pip3 install context-stats
+mkdir -p /root/.claude
+
+# Pre-configure the Claude Code status line: --fix writes the statusLine block
+# into ~/.claude/settings.json (idempotent, key-preserving, backed up), and the
+# plain doctor run is the build-time verification — it exits non-zero whenever
+# any link in the chain is broken.
+context-stats doctor --fix
+context-stats doctor
+
+# Refresh the login banner now that asm and context-stats exist.
+/usr/local/bin/devbox-genmotd
+
+npm cache clean --force 2>/dev/null || true
+rm -rf /root/.npm /root/.cache /tmp/* /var/tmp/*
+
+echo "[Skills] Agent skills + context-stats install complete."
 EOF
 
 # ---------- Entrypoint (no COPY dependency) ----------
@@ -338,7 +407,7 @@ if [ -t 1 ] || [ -t 2 ]; then
         fi
     done
     if command -v update-ai-tools >/dev/null 2>&1; then
-        echo "[dev] AI CLIs: run update-ai-tools to upgrade opencode/claude/codex/pi/herdr to latest." >&2
+        echo "[dev] AI CLIs: run update-ai-tools to upgrade the AI CLIs, asm skills, and context-stats to latest." >&2
     fi
 fi
 exec "$@"
